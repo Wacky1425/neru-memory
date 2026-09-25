@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "916997940907",
+    "project_id": "neru-memory",
+    "storage_bucket": "neru-memory.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:916997940907:android:fbe58652185fdaa666f9ee",
+        "android_client_info": {
+          "package_name": "com.example.neru_memory"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "916997940907-101a26vdg6o9ucpreqf7jnislmf8ment.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.neru_memory",
+            "certificate_hash": "16d1701547711fde8185a7bf58f28b317b5ebf44"
+          }
+        },
+        {
+          "client_id": "916997940907-baq8lhqiprcubd048bnmo6hclui5l94b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYYBiEnBr4JsEWpLfx3Yvc33d1fgiCF_8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "916997940907-baq8lhqiprcubd048bnmo6hclui5l94b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

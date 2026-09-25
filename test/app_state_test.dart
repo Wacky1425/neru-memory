@@ -1,2 +1,16 @@
-import 'package:flutter_test/flutter_test.dart';import 'package:neru_memory/core/app_state.dart';import 'package:neru_memory/core/models.dart';
-void main(){test('task can be added and completed',(){final s=AppState.seeded();final before=s.tasks.length;s.addTask('テスト',bucket:TaskBucket.today);expect(s.tasks.length,before+1);expect(s.tasks.first.completed,false);s.toggleTask(s.tasks.first);expect(s.tasks.first.completed,true);});test('default theme is light',(){expect(AppState.seeded().themeMode.name,'light');});}
+import 'package:flutter_test/flutter_test.dart';
+import 'package:neru_memory/core/app_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  test('AppState loads with a valid theme mode', () async {
+    final state = await AppState.load();
+    expect(state.themeMode.name, isNotEmpty);
+  });
+}

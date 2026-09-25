@@ -1,0 +1,28 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "neru-memory",
+          "appId": "1:916997940907:android:fbe58652185fdaa666f9ee",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "neru-memory",
+          "configurations": {
+            "android": "1:916997940907:android:fbe58652185fdaa666f9ee",
+            "web": "1:916997940907:web:3b20155e3f51e44e66f9ee"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-northeast1",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
