@@ -1,21 +1,11 @@
-import 'package:flutter/material.dart';
-import '../../core/app_state.dart';
-import '../../widgets/common.dart';
-
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    final s = AppStateScope.of(context);
-    return Scaffold(appBar: AppBar(title: const Text('設定', style: TextStyle(fontWeight: FontWeight.w800))), body: PageWrap(child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 40), children: [
-      const SectionTitle('表示'),
-      Card(child: Column(children: [_themeTile(context, s, ThemeMode.light, 'ライト', '白 × 青。端末設定に関係なくライト表示', Icons.light_mode_outlined), _themeTile(context, s, ThemeMode.dark, 'ダーク', '濃い背景 × 青', Icons.dark_mode_outlined), _themeTile(context, s, ThemeMode.system, '端末設定', '端末のテーマに合わせる', Icons.settings_brightness_outlined)])),
-      const SectionTitle('連携'),
-      const Card(child: Column(children: [ListTile(leading: Icon(Icons.account_circle_outlined), title: Text('Google アカウント'), subtitle: Text('Phase 3で接続')), Divider(height: 1), ListTile(leading: Icon(Icons.calendar_month_outlined), title: Text('Google Calendar'), subtitle: Text('Phase 3で接続'))])),
-      const SectionTitle('Android'),
-      const Card(child: ListTile(leading: Icon(Icons.widgets_outlined), title: Text('ホーム画面ウィジェット'), subtitle: Text('Quick Capture / Today を実装予定'))),
-      const SizedBox(height: 24), Center(child: Text('Neru Memory  v0.2.0')),
-    ])));
-  }
-  Widget _themeTile(BuildContext context, AppState s, ThemeMode mode, String title, String subtitle, IconData icon) => ListTile(leading: Icon(icon), title: Text(title), subtitle: Text(subtitle), trailing: s.themeMode == mode ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : const Icon(Icons.circle_outlined), onTap: () => s.setTheme(mode));
-}
+import 'package:flutter/material.dart';import 'package:flutter/services.dart';import '../../core/app_state.dart';import '../../core/google_calendar_service.dart';import '../../widgets/common.dart';import 'trash_page.dart';import 'data_summary_page.dart';
+class SettingsPage extends StatelessWidget{const SettingsPage({super.key});@override Widget build(BuildContext c){final s=AppStateScope.of(c);return Scaffold(appBar:AppBar(title:const Text('設定',style:TextStyle(fontWeight:FontWeight.w800))),body:PageWrap(child:ListView(padding:const EdgeInsets.fromLTRB(16,8,16,100),children:[
+const SectionTitle('表示'),Card(child:Column(children:[RadioListTile<ThemeMode>(value:ThemeMode.light,groupValue:s.themeMode,onChanged:(v){if(v!=null)s.setTheme(v);},title:const Text('ライト')),RadioListTile<ThemeMode>(value:ThemeMode.dark,groupValue:s.themeMode,onChanged:(v){if(v!=null)s.setTheme(v);},title:const Text('ダーク')),RadioListTile<ThemeMode>(value:ThemeMode.system,groupValue:s.themeMode,onChanged:(v){if(v!=null)s.setTheme(v);},title:const Text('端末設定'))])),
+const SectionTitle('連携'),Card(child:ListTile(leading:const Icon(Icons.calendar_month),title:const Text('Google Calendar'),subtitle:Text(GoogleCalendarService.instance.isConnected?'接続済み':'予定タブから接続'))),
+const SectionTitle('思い出す'),Card(child:const ListTile(leading:Icon(Icons.lightbulb_outline),title:Text('REMEMBER'),subtitle:Text('7日以上見返していないWant・日時未定Future・Goalを優先して表示。あとで=7日、しばらく出さない=30日。'))),
+const SectionTitle('データ'),Card(child:Column(children:[
+ListTile(leading:const Icon(Icons.analytics_outlined),title:const Text('データ概要'),subtitle:const Text('保存している項目数を確認'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const DataSummaryPage()))),
+ListTile(leading:const Icon(Icons.delete_outline),title:const Text('ゴミ箱'),subtitle:Text('${s.trash.length}件 · 30日後に自動削除'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const TrashPage()))),
+ListTile(leading:const Icon(Icons.data_object),title:const Text('JSONエクスポート'),subtitle:const Text('バックアップ用JSONをコピー'),onTap:()async{await Clipboard.setData(ClipboardData(text:s.exportJson()));if(c.mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('JSONをコピーしました')));}),
+ListTile(leading:const Icon(Icons.cloud_done_outlined),title:const Text('Firestore同期'),subtitle:Text(s.cloudReady?'接続済み':s.cloudError??'Googleログイン後に同期')),
+])),const SizedBox(height:20),const Center(child:Text('Neru Memory v1.10 RC'))])));}}

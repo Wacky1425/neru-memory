@@ -1,0 +1,4 @@
+import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../widgets/common.dart';
+class DataSummaryPage extends StatelessWidget{const DataSummaryPage({super.key});@override Widget build(BuildContext c){final s=AppStateScope.of(c);final open=s.tasks.where((x)=>!x.completed).length;return Scaffold(appBar:AppBar(title:const Text('データ概要')),body:PageWrap(child:ListView(padding:const EdgeInsets.all(16),children:[
+_card('やること',open,'未完了'),_card('買いたい',s.wants.length,'保存中'),_card('予定',s.futures.length,'Future'),_card('目標',s.goals.length,'Goal'),_card('未分類',s.inbox.length,'Inbox'),_card('ゴミ箱',s.trash.length,'30日保持'),
+] )));}Widget _card(String t,int n,String sub)=>Card(child:ListTile(title:Text(t),subtitle:Text(sub),trailing:Text('$n',style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold))));}
