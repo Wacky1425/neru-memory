@@ -37,19 +37,19 @@ jobs:
 
       - run: flutter build apk --release
 
-      - run: cp build/app/outputs/flutter-apk/app-release.apk neru-memory.apk
+      - run: cp build/app/outputs/flutter-apk/app-release.apk neru-memory-${GITHUB_RUN_NUMBER}.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: neru-memory-apk
-          path: neru-memory.apk
+          path: neru-memory-${GITHUB_RUN_NUMBER}.apk
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="auto-${GITHUB_RUN_NUMBER}"
-          gh release create "$TAG" neru-memory.apk \
+          gh release create "$TAG" neru-memory-${GITHUB_RUN_NUMBER}.apk \
             --repo "$GITHUB_REPOSITORY" \
             --title "Neru Memory build #${GITHUB_RUN_NUMBER}" \
             --notes "Automatic Android build from ${GITHUB_SHA}." \
