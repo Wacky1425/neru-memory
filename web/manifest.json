@@ -1,6 +1,6 @@
 {
-  "name": "Neru Memory",
-  "short_name": "Neru Memory",
+  "name": "NeruMemory",
+  "short_name": "NeruMemory",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#FFFFFF",

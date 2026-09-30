@@ -25,7 +25,7 @@ class SettingsPage extends StatelessWidget{
         ListTile(leading:const Icon(Icons.delete_outline),title:const Text('ゴミ箱'),subtitle:Text('${s.trash.length}件 · 30日後に自動削除'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const TrashPage()))),
         ListTile(leading:const Icon(Icons.data_object),title:const Text('JSONエクスポート'),subtitle:const Text('バックアップ用JSONをコピー'),onTap:()async{await Clipboard.setData(ClipboardData(text:s.exportJson()));if(c.mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('JSONをコピーしました')));}),
         ListTile(leading:const Icon(Icons.cloud_done_outlined),title:const Text('Firestore同期'),subtitle:Text(s.cloudReady?'接続済み':s.cloudError??'Googleログイン後に同期'))])),
-      const SizedBox(height:20),const Center(child:Text('Neru Memory v1.12'))
+      const SizedBox(height:20),const Center(child:Text('NeruMemory · sync enabled'))
     ])));
   }
 }
