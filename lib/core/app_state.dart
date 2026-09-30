@@ -176,8 +176,16 @@ class AppState extends ChangeNotifier{
     if(type=='goal'){final v=GoalItem(id:id(),title:x.text);goals.insert(0,v);_saveCloudItem('goals',v.toJson());}
     inbox.remove(x);_deleteCloud('inbox',x.id);_changed();
   }
-  void restoreTrash(TrashEntry x){try{if(x.type=='task')tasks.insert(0,MemoryTask.fromJson(x.data));if(x.type=='want')wants.insert(0,WantItem.fromJson(x.data));if(x.type=='future')futures.insert(0,FutureItem.fromJson(x.data));if(x.type=='goal')goals.insert(0,GoalItem.fromJson(x.data));trash.remove(x);_changed();for(final t in tasks){if(t.id==x.data['id'])if(!kIsWeb)NotificationService.instance.syncTask(t);}
-for(final f in futures){if(f.id==x.data['id'])if(!kIsWeb)NotificationService.instance.syncFuture(f);}}catch(_){}}void deleteTrashForever(TrashEntry x){trash.remove(x);_deleteCloud('trash',x.id);_changed();}
+  void restoreTrash(TrashEntry x){
+    try{
+      if(x.type=='task'){final v=MemoryTask.fromJson(x.data);tasks.insert(0,v);_saveCloudItem('tasks',v.toJson());if(!kIsWeb)NotificationService.instance.syncTask(v);}
+      if(x.type=='want'){final v=WantItem.fromJson(x.data);wants.insert(0,v);_saveCloudItem('wants',v.toJson());}
+      if(x.type=='future'){final v=FutureItem.fromJson(x.data);futures.insert(0,v);_saveCloudItem('futures',v.toJson());if(!kIsWeb)NotificationService.instance.syncFuture(v);}
+      if(x.type=='goal'){final v=GoalItem.fromJson(x.data);goals.insert(0,v);_saveCloudItem('goals',v.toJson());}
+      trash.remove(x);_deleteCloud('trash',x.id);_changed();
+    }catch(_){}
+  }
+  void deleteTrashForever(TrashEntry x){trash.remove(x);_deleteCloud('trash',x.id);_changed();}
 
   String _rememberKey(String type,String itemId)=>'$type:$itemId';
 
@@ -223,12 +231,12 @@ for(final f in futures){if(f.id==x.data['id'])if(!kIsWeb)NotificationService.ins
 
   void rememberLater(RememberSuggestion item,{int days=7}){
     rememberMeta[_rememberKey(item.type,item.id)]=DateTime.now().add(Duration(days:days));
-    _changed();
+    _changed();_saveCloudSettings();
   }
 
   void rememberReviewed(RememberSuggestion item){
     rememberMeta[_rememberKey(item.type,item.id)]=DateTime.now();
-    _changed();
+    _changed();_saveCloudSettings();
   }
 
   void rememberHide(RememberSuggestion item){
