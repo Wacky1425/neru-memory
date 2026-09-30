@@ -96,60 +96,58 @@ class _HomePageState extends State<HomePage>{
 class MemorySearch extends SearchDelegate<String>{
   MemorySearch(this.s);
   final AppState s;
+  String filter='all';
 
-  @override
-  List<Widget> buildActions(BuildContext c)=>[
+  @override List<Widget> buildActions(BuildContext c)=>[
+    PopupMenuButton<String>(
+      tooltip:'種類で絞り込み',
+      icon:Icon(filter=='all'?Icons.filter_list:Icons.filter_alt),
+      initialValue:filter,
+      onSelected:(v){filter=v;showSuggestions(c);},
+      itemBuilder:(_)=>const[
+        PopupMenuItem(value:'all',child:Text('すべて')),
+        PopupMenuItem(value:'task',child:Text('やること')),
+        PopupMenuItem(value:'want',child:Text('買いたい')),
+        PopupMenuItem(value:'future',child:Text('予定')),
+        PopupMenuItem(value:'goal',child:Text('目標')),
+        PopupMenuItem(value:'inbox',child:Text('未分類')),
+      ],
+    ),
     if(query.isNotEmpty)IconButton(onPressed:()=>query='',icon:const Icon(Icons.clear)),
   ];
 
-  @override
-  Widget buildLeading(BuildContext c)=>IconButton(
-    onPressed:()=>close(c,''),
-    icon:const Icon(Icons.arrow_back),
-  );
-
+  @override Widget buildLeading(BuildContext c)=>IconButton(onPressed:()=>close(c,''),icon:const Icon(Icons.arrow_back));
   @override Widget buildResults(BuildContext c)=>_body(c);
   @override Widget buildSuggestions(BuildContext c)=>_body(c);
 
   Widget _body(BuildContext context){
     final q=query.trim().toLowerCase();
-    if(q.isEmpty)return const Center(child:Text('覚えていることを検索'));
-
-    bool has(String x)=>x.toLowerCase().contains(q);
+    bool has(String x)=>q.isEmpty||x.toLowerCase().contains(q);
+    bool show(String type)=>filter=='all'||filter==type;
     final rows=<_MemorySearchRow>[];
 
-    rows.addAll(s.tasks
-        .where((x)=>has('${x.title} ${x.note} ${x.tags.join(' ')}'))
-        .map((x)=>_MemorySearchRow('やること',x.title,Icons.task_alt,()=>editTask(context,x))));
-    rows.addAll(s.wants
-        .where((x)=>has('${x.title} ${x.note} ${x.timing} ${x.waitingFor} ${x.tags.join(' ')}'))
-        .map((x)=>_MemorySearchRow('買いたい',x.title,Icons.shopping_bag_outlined,()=>editWant(context,x))));
-    rows.addAll(s.futures
-        .where((x)=>has('${x.title} ${x.note} ${x.timing} ${x.tags.join(' ')}'))
-        .map((x)=>_MemorySearchRow('予定',x.title,Icons.push_pin_outlined,()=>editFuture(context,x))));
-    rows.addAll(s.goals
-        .where((x)=>has('${x.title} ${x.why} ${x.nextAction} ${x.tags.join(' ')}'))
-        .map((x)=>_MemorySearchRow('目標',x.title,Icons.flag_outlined,null)));
-    rows.addAll(s.inbox
-        .where((x)=>has(x.text))
-        .map((x)=>_MemorySearchRow('未分類',x.text,Icons.inbox_outlined,null)));
+    if(show('task')) rows.addAll(s.tasks.where((x)=>has('${x.title} ${x.note} ${x.tags.join(' ')}')).map((x)=>_MemorySearchRow('やること',x.title,Icons.task_alt,()=>editTask(context,x),x.completed?'完了':x.bucket.name)));
+    if(show('want')) rows.addAll(s.wants.where((x)=>has('${x.title} ${x.note} ${x.timing} ${x.waitingFor} ${x.tags.join(' ')}')).map((x)=>_MemorySearchRow('買いたい',x.title,Icons.shopping_bag_outlined,()=>editWant(context,x),x.status.name)));
+    if(show('future')) rows.addAll(s.futures.where((x)=>has('${x.title} ${x.note} ${x.timing} ${x.tags.join(' ')}')).map((x)=>_MemorySearchRow('予定',x.title,Icons.push_pin_outlined,()=>editFuture(context,x),x.status.name)));
+    if(show('goal')) rows.addAll(s.goals.where((x)=>has('${x.title} ${x.why} ${x.nextAction} ${x.tags.join(' ')}')).map((x)=>_MemorySearchRow('目標',x.title,Icons.flag_outlined,null,x.status.name)));
+    if(show('inbox')) rows.addAll(s.inbox.where((x)=>has(x.text)).map((x)=>_MemorySearchRow('未分類',x.text,Icons.inbox_outlined,null,'')));
 
+    if(q.isEmpty&&filter=='all')return const Center(child:Text('キーワード検索、または右上から種類を絞り込み'));
     if(rows.isEmpty)return const Center(child:Text('見つかりませんでした'));
     return ListView(children:[
+      Padding(padding:const EdgeInsets.fromLTRB(16,8,16,4),child:Text('${rows.length}件',style:Theme.of(context).textTheme.labelLarge)),
       for(final row in rows)ListTile(
-        leading:Icon(row.icon),
-        title:Text(row.title),
-        subtitle:Text(row.type),
-        trailing:row.onTap==null?null:const Icon(Icons.chevron_right),
-        onTap:row.onTap,
+        leading:Icon(row.icon),title:Text(row.title),
+        subtitle:Text(row.detail.isEmpty?row.type:'${row.type} · ${row.detail}'),
+        trailing:row.onTap==null?null:const Icon(Icons.chevron_right),onTap:row.onTap,
       ),
     ]);
   }
 }
 
 class _MemorySearchRow{
-  const _MemorySearchRow(this.type,this.title,this.icon,this.onTap);
-  final String type,title;
+  const _MemorySearchRow(this.type,this.title,this.icon,this.onTap,this.detail);
+  final String type,title,detail;
   final IconData icon;
   final VoidCallback? onTap;
 }
