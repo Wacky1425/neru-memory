@@ -24,6 +24,17 @@ class SettingsPage extends StatelessWidget{
         ListTile(leading:const Icon(Icons.analytics_outlined),title:const Text('データ概要'),subtitle:const Text('保存している項目数を確認'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const DataSummaryPage()))),
         ListTile(leading:const Icon(Icons.delete_outline),title:const Text('ゴミ箱'),subtitle:Text('${s.trash.length}件 · 30日後に自動削除'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const TrashPage()))),
         ListTile(leading:const Icon(Icons.data_object),title:const Text('JSONエクスポート'),subtitle:const Text('バックアップ用JSONをコピー'),onTap:()async{await Clipboard.setData(ClipboardData(text:s.exportJson()));if(c.mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('JSONをコピーしました')));}),
+        ListTile(leading:const Icon(Icons.restore_page_outlined),title:const Text('JSONから復元'),subtitle:const Text('バックアップJSONを貼り付けて復元'),onTap:()async{
+          final controller=TextEditingController();
+          final raw=await showDialog<String>(context:c,builder:(d)=>AlertDialog(title:const Text('バックアップから復元'),content:SizedBox(width:520,child:TextField(controller:controller,minLines:6,maxLines:12,decoration:const InputDecoration(hintText:'ここにNeruMemoryのJSONを貼り付け',border:OutlineInputBorder()))),actions:[TextButton(onPressed:()=>Navigator.pop(d),child:const Text('キャンセル')),FilledButton(onPressed:()=>Navigator.pop(d,controller.text),child:const Text('復元'))]));
+          controller.dispose();
+          if(raw==null||raw.trim().isEmpty)return;
+          if(!c.mounted)return;
+          final ok=await showDialog<bool>(context:c,builder:(d)=>AlertDialog(title:const Text('現在のデータを置き換えますか？'),content:const Text('復元すると、現在のNeruMemoryデータはバックアップ内容に置き換わります。'),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('やめる')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('復元する'))]));
+          if(ok!=true)return;
+          final error=await s.importJson(raw);
+          if(c.mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(error??'バックアップを復元しました')));
+        }),
         ListTile(leading:const Icon(Icons.cloud_done_outlined),title:const Text('Firestore同期'),subtitle:Text(s.cloudError!=null?'同期エラーあり':s.cloudBusy?'同期中…':s.cloudReady?'リアルタイム同期中':'Googleログイン後に同期'))])),
       const SizedBox(height:20),const Center(child:Text('NeruMemory · sync enabled'))
     ])));
