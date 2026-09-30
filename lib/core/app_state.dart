@@ -30,6 +30,32 @@ class AppState extends ChangeNotifier{
   }
   Map<String,dynamic> _snapshot()=>{'themeMode':themeMode.name,'tasks':tasks.map((e)=>e.toJson()).toList(),'wants':wants.map((e)=>e.toJson()).toList(),'futures':futures.map((e)=>e.toJson()).toList(),'goals':goals.map((e)=>e.toJson()).toList(),'milestones':milestones.map((e)=>e.toJson()).toList(),'inbox':inbox.map((e)=>e.toJson()).toList(),'trash':trash.map((e)=>e.toJson()).toList(),'rememberMeta':rememberMeta.map((k,v)=>MapEntry(k,v.toIso8601String())),'updatedAt':DateTime.now().toUtc().toIso8601String()};
   String exportJson()=>const JsonEncoder.withIndent('  ').convert(_snapshot());
+  Future<String?> importJson(String raw) async {
+    try {
+      final decoded=jsonDecode(raw);
+      if(decoded is! Map)return 'JSONの形式が正しくありません';
+      final j=Map<String,dynamic>.from(decoded);
+      final next=AppState._();
+      next._restore(j);
+      tasks..clear()..addAll(next.tasks);
+      wants..clear()..addAll(next.wants);
+      futures..clear()..addAll(next.futures);
+      goals..clear()..addAll(next.goals);
+      milestones..clear()..addAll(next.milestones);
+      inbox..clear()..addAll(next.inbox);
+      trash..clear()..addAll(next.trash);
+      rememberMeta..clear()..addAll(next.rememberMeta);
+      themeMode=next.themeMode;
+      await _save();
+      final uid=_cloudUid;
+      if(uid!=null)await CloudStore.instance.saveItemState(uid,_snapshot());
+      notifyListeners();
+      if(!kIsWeb)AndroidWidgetBridge.instance.sync(this);
+      return null;
+    } catch(e) {
+      return '読み込みに失敗しました。NeruMemoryのバックアップJSONか確認してください';
+    }
+  }
   Future<void> _save() async {
     await _prefs?.setString('neru_memory_state', jsonEncode(_snapshot()));
   }
