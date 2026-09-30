@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import 'editors.dart';
+import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import '../tags/tag_results_page.dart';import 'editors.dart';
 
 Widget _taggedSubtitle(BuildContext context,List<String> lines,List<String> tags){
   final text=lines.where((e)=>e.trim().isNotEmpty).join(' · ');
@@ -7,8 +7,9 @@ Widget _taggedSubtitle(BuildContext context,List<String> lines,List<String> tags
     if(text.isNotEmpty)Text(text,maxLines:2,overflow:TextOverflow.ellipsis),
     const SizedBox(height:4),
     Wrap(spacing:4,runSpacing:2,children:[
-      for(final tag in tags.take(4))Chip(
+      for(final tag in tags.take(4))ActionChip(
         label:Text('#$tag'),
+        onPressed:()=>openTagResults(context,tag),
         visualDensity:VisualDensity.compact,
         padding:EdgeInsets.zero,
         materialTapTargetSize:MaterialTapTargetSize.shrinkWrap,
