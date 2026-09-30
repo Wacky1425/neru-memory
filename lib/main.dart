@@ -19,10 +19,14 @@ Future<void> main() async {
     await Firebase.initializeApp();
   }
 
-  await NotificationService.instance.init();
+  if (!kIsWeb) {
+    await NotificationService.instance.init();
+  }
 
   final state = await AppState.load();
-  await AndroidWidgetBridge.instance.init(state);
+  if (!kIsWeb) {
+    await AndroidWidgetBridge.instance.init(state);
+  }
 
   runApp(
     AppStateScope(

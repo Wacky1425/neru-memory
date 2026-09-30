@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';import 'cloud_store.dart';import 'trash_entry.dart';import 'notification_service.dart';import 'android_widget_bridge.dart';
 
@@ -28,20 +29,92 @@ class AppState extends ChangeNotifier{
   }
   Map<String,dynamic> _snapshot()=>{'themeMode':themeMode.name,'tasks':tasks.map((e)=>e.toJson()).toList(),'wants':wants.map((e)=>e.toJson()).toList(),'futures':futures.map((e)=>e.toJson()).toList(),'goals':goals.map((e)=>e.toJson()).toList(),'milestones':milestones.map((e)=>e.toJson()).toList(),'inbox':inbox.map((e)=>e.toJson()).toList(),'trash':trash.map((e)=>e.toJson()).toList(),'rememberMeta':rememberMeta.map((k,v)=>MapEntry(k,v.toIso8601String())),'updatedAt':DateTime.now().toUtc().toIso8601String()};
   String exportJson()=>const JsonEncoder.withIndent('  ').convert(_snapshot());
-  Future<void> _save()async{final d=_snapshot();await _prefs?.setString('neru_memory_state',jsonEncode(d));if(_cloudUid!=null){try{await CloudStore.instance.saveState(_cloudUid!,d);cloudError=null;}catch(e){cloudError='$e';}}}
+  Future<void> _save() async {
+    final d = _snapshot();
+    await _prefs?.setString('neru_memory_state', jsonEncode(d));
+    if (_cloudUid != null) {
+      try {
+        await CloudStore.instance.saveItemState(_cloudUid!, d);
+        cloudError = null;
+      } catch (e) {
+        // Local data remains authoritative while offline. Firestore also queues
+        // supported writes in its local cache. Never discard local edits here.
+        cloudError = '$e';
+      }
+    }
+  }
   void _changed(){notifyListeners();_save();AndroidWidgetBridge.instance.sync(this);}
   void _migrateLegacyTaskInbox(){final old=tasks.where((t)=>t.bucket==TaskBucket.inbox).toList();if(old.isEmpty)return;for(final t in old){inbox.add(InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);}_save();}
   void _purgeTrash(){final cut=DateTime.now().subtract(const Duration(days:30));trash.removeWhere((x)=>x.deletedAt.isBefore(cut));}
-  Future<void> connectCloud(String uid)async{if(_cloudUid==uid&&cloudReady)return;_cloudUid=uid;cloudBusy=true;notifyListeners();try{final r=await CloudStore.instance.loadState(uid);if(r==null)await CloudStore.instance.saveState(uid,_snapshot());else{tasks.clear();wants.clear();futures.clear();goals.clear();milestones.clear();inbox.clear();trash.clear();_restore(r);_migrateLegacyTaskInbox();await _prefs?.setString('neru_memory_state',jsonEncode(_snapshot()));}cloudReady=true;cloudError=null;}catch(e){cloudError='$e';cloudReady=false;}cloudBusy=false;notifyListeners();}
+  Future<void> connectCloud(String uid) async {
+    if (_cloudUid == uid && cloudReady) return;
+    _cloudUid = uid;
+    cloudBusy = true;
+    notifyListeners();
+    try {
+      await CloudStore.instance.migrateLegacyIfNeeded(uid);
+      final remote = await CloudStore.instance.loadItemState(uid);
+      _mergeRemote(remote);
+      await CloudStore.instance.saveItemState(uid, _snapshot());
+      await _prefs?.setString('neru_memory_state', jsonEncode(_snapshot()));
+      cloudReady = true;
+      cloudError = null;
+    } catch (e) {
+      // Offline startup must still enter the app using SharedPreferences.
+      cloudError = '$e';
+      cloudReady = true;
+    }
+    cloudBusy = false;
+    notifyListeners();
+  }
+
+  DateTime _stamp(Map<String,dynamic> j) =>
+      DateTime.tryParse('${j['updatedAt'] ?? j['createdAt'] ?? ''}') ?? DateTime(2000);
+
+  List<T> _mergeById<T>(List<T> local, List<dynamic> raw, String Function(T) idOf,
+      DateTime Function(T) stampOf, T Function(Map<String,dynamic>) parse) {
+    final map = <String,T>{for (final x in local) idOf(x): x};
+    for (final value in raw) {
+      final json = Map<String,dynamic>.from(value as Map);
+      final incoming = parse(json);
+      final id = idOf(incoming);
+      final current = map[id];
+      if (current == null || _stamp(json).isAfter(stampOf(current))) map[id] = incoming;
+    }
+    return map.values.toList();
+  }
+
+  void _mergeRemote(Map<String,dynamic> r) {
+    final mt = _mergeById(tasks, r['tasks'] as List? ?? const [], (x)=>x.id,
+        (x)=>x.updatedAt, MemoryTask.fromJson); tasks..clear()..addAll(mt);
+    final mw = _mergeById(wants, r['wants'] as List? ?? const [], (x)=>x.id,
+        (x)=>x.updatedAt, WantItem.fromJson); wants..clear()..addAll(mw);
+    final mf = _mergeById(futures, r['futures'] as List? ?? const [], (x)=>x.id,
+        (x)=>x.updatedAt, FutureItem.fromJson); futures..clear()..addAll(mf);
+    final mg = _mergeById(goals, r['goals'] as List? ?? const [], (x)=>x.id,
+        (x)=>x.updatedAt, GoalItem.fromJson); goals..clear()..addAll(mg);
+    final mm = _mergeById(milestones, r['milestones'] as List? ?? const [], (x)=>x.id,
+        (x)=>x.updatedAt, MilestoneItem.fromJson); milestones..clear()..addAll(mm);
+    final mi = _mergeById(inbox, r['inbox'] as List? ?? const [], (x)=>x.id,
+        (x)=>x.updatedAt, InboxItem.fromJson); inbox..clear()..addAll(mi);
+    // Trash is append-only until purge/explicit permanent deletion.
+    final trashMap = {for(final x in trash) x.id:x};
+    for(final raw in (r['trash'] as List? ?? const [])) {
+      final x=TrashEntry.fromJson(Map<String,dynamic>.from(raw as Map)); trashMap[x.id]=x;
+    }
+    trash..clear()..addAll(trashMap.values);
+    final rm=Map<String,dynamic>.from(r['rememberMeta']??const {});
+    for(final e in rm.entries){final d=DateTime.tryParse('${e.value}');if(d!=null)rememberMeta[e.key]=d;}
+  }
   void disconnectCloud(){_cloudUid=null;cloudReady=false;notifyListeners();}void setTheme(ThemeMode m){themeMode=m;_changed();}
-  void toggleTask(MemoryTask t){t.completed=!t.completed;_changed();NotificationService.instance.syncTask(t);}void addTask(String x,{TaskBucket bucket=TaskBucket.soon}){tasks.insert(0,MemoryTask(id:id(),title:x,bucket:bucket));_changed();}void updateTask(MemoryTask x){_changed();NotificationService.instance.syncTask(x);}
-  void moveTaskToInbox(MemoryTask t){NotificationService.instance.cancelTask(t.id);inbox.insert(0,InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);_changed();}
-  void deleteTask(MemoryTask x){NotificationService.instance.cancelTask(x.id);trash.insert(0,TrashEntry(id:id(),type:'task',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));tasks.remove(x);_changed();}
+  void toggleTask(MemoryTask t){t.completed=!t.completed;t.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncTask(t);}void addTask(String x,{TaskBucket bucket=TaskBucket.soon}){tasks.insert(0,MemoryTask(id:id(),title:x,bucket:bucket));_changed();}void updateTask(MemoryTask x){x.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncTask(x);}
+  void moveTaskToInbox(MemoryTask t){if(!kIsWeb)NotificationService.instance.cancelTask(t.id);inbox.insert(0,InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);_changed();}
+  void deleteTask(MemoryTask x){if(!kIsWeb)NotificationService.instance.cancelTask(x.id);trash.insert(0,TrashEntry(id:id(),type:'task',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));tasks.remove(x);_changed();}
   void addWant(String x){wants.insert(0,WantItem(id:id(),title:x));_changed();}void updateWant(WantItem x){x.updatedAt=DateTime.now();_changed();}void deleteWant(WantItem x){rememberMeta.remove(_rememberKey('want',x.id));trash.insert(0,TrashEntry(id:id(),type:'want',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));wants.remove(x);_changed();}
-  void addFuture(String x){futures.insert(0,FutureItem(id:id(),title:x));_changed();}void updateFuture(FutureItem x){x.updatedAt=DateTime.now();_changed();NotificationService.instance.syncFuture(x);}void deleteFuture(FutureItem x){rememberMeta.remove(_rememberKey('future',x.id));NotificationService.instance.cancelFuture(x.id);trash.insert(0,TrashEntry(id:id(),type:'future',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));futures.remove(x);_changed();}
+  void addFuture(String x){futures.insert(0,FutureItem(id:id(),title:x));_changed();}void updateFuture(FutureItem x){x.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncFuture(x);}void deleteFuture(FutureItem x){rememberMeta.remove(_rememberKey('future',x.id));if(!kIsWeb)NotificationService.instance.cancelFuture(x.id);trash.insert(0,TrashEntry(id:id(),type:'future',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));futures.remove(x);_changed();}
   void addGoal(String x){goals.insert(0,GoalItem(id:id(),title:x));_changed();}void updateGoal(GoalItem x){x.updatedAt=DateTime.now();_changed();}void deleteGoal(GoalItem x){rememberMeta.remove(_rememberKey('goal',x.id));trash.insert(0,TrashEntry(id:id(),type:'goal',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));goals.remove(x);milestones.removeWhere((m)=>m.goalId==x.id);_changed();}
   void addMilestone(String gid,String x){milestones.add(MilestoneItem(id:id(),goalId:gid,title:x));_syncGoalFromMilestones(gid);_changed();}
-  void updateMilestone(MilestoneItem x){_syncGoalFromMilestones(x.goalId);_changed();}
+  void updateMilestone(MilestoneItem x){x.updatedAt=DateTime.now();_syncGoalFromMilestones(x.goalId);_changed();}
   void deleteMilestone(MilestoneItem x){final gid=x.goalId;milestones.remove(x);_syncGoalFromMilestones(gid);_changed();}
   void _syncGoalFromMilestones(String gid){
     final ms=milestones.where((m)=>m.goalId==gid).toList();
@@ -55,8 +128,8 @@ class AppState extends ChangeNotifier{
   }
   void addInbox(String x){inbox.insert(0,InboxItem(id:id(),text:x,createdAt:DateTime.now()));_changed();}void deleteInbox(InboxItem x){inbox.remove(x);_changed();}
   void convertInbox(InboxItem x,String type){if(type=='task')tasks.insert(0,MemoryTask(id:id(),title:x.text,bucket:TaskBucket.soon));if(type=='want')wants.insert(0,WantItem(id:id(),title:x.text));if(type=='future')futures.insert(0,FutureItem(id:id(),title:x.text));if(type=='goal')goals.insert(0,GoalItem(id:id(),title:x.text));inbox.remove(x);_changed();}
-  void restoreTrash(TrashEntry x){try{if(x.type=='task')tasks.insert(0,MemoryTask.fromJson(x.data));if(x.type=='want')wants.insert(0,WantItem.fromJson(x.data));if(x.type=='future')futures.insert(0,FutureItem.fromJson(x.data));if(x.type=='goal')goals.insert(0,GoalItem.fromJson(x.data));trash.remove(x);_changed();for(final t in tasks){if(t.id==x.data['id'])NotificationService.instance.syncTask(t);}
-for(final f in futures){if(f.id==x.data['id'])NotificationService.instance.syncFuture(f);}}catch(_){}}void deleteTrashForever(TrashEntry x){trash.remove(x);_changed();}
+  void restoreTrash(TrashEntry x){try{if(x.type=='task')tasks.insert(0,MemoryTask.fromJson(x.data));if(x.type=='want')wants.insert(0,WantItem.fromJson(x.data));if(x.type=='future')futures.insert(0,FutureItem.fromJson(x.data));if(x.type=='goal')goals.insert(0,GoalItem.fromJson(x.data));trash.remove(x);_changed();for(final t in tasks){if(t.id==x.data['id'])if(!kIsWeb)NotificationService.instance.syncTask(t);}
+for(final f in futures){if(f.id==x.data['id'])if(!kIsWeb)NotificationService.instance.syncFuture(f);}}catch(_){}}void deleteTrashForever(TrashEntry x){trash.remove(x);_changed();}
 
   String _rememberKey(String type,String itemId)=>'$type:$itemId';
 

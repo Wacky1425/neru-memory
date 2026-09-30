@@ -4,10 +4,10 @@ enum FutureStatus { considering, planned, scheduled, completed, dropped }
 enum GoalStatus { active, achieved, paused, dropped }
 
 class MemoryTask {
-  MemoryTask({required this.id,required this.title,this.bucket=TaskBucket.soon,this.completed=false,this.deadline,this.note='',this.goalId,List<String>? tags}) : tags=tags??[];
-  final String id; String title; TaskBucket bucket; bool completed; DateTime? deadline; String note; String? goalId; List<String> tags;
-  Map<String,dynamic> toJson()=>{'id':id,'title':title,'bucket':bucket.name,'completed':completed,'deadline':deadline?.toIso8601String(),'note':note,'goalId':goalId,'tags':tags};
-  factory MemoryTask.fromJson(Map<String,dynamic> j)=>MemoryTask(id:j['id'],title:j['title'],bucket:TaskBucket.values.byName(j['bucket']??'soon'),completed:j['completed']??false,deadline:j['deadline']==null?null:DateTime.tryParse(j['deadline']),note:j['note']??'',goalId:j['goalId'],tags:List<String>.from(j['tags']??const []));
+  MemoryTask({required this.id,required this.title,this.bucket=TaskBucket.soon,this.completed=false,this.deadline,this.note='',this.goalId,List<String>? tags,DateTime? updatedAt}) : tags=tags??[], updatedAt=updatedAt??DateTime.now();
+  final String id; String title; TaskBucket bucket; bool completed; DateTime? deadline; String note; String? goalId; List<String> tags; DateTime updatedAt;
+  Map<String,dynamic> toJson()=>{'id':id,'title':title,'bucket':bucket.name,'completed':completed,'deadline':deadline?.toIso8601String(),'note':note,'goalId':goalId,'tags':tags,'updatedAt':updatedAt.toIso8601String()};
+  factory MemoryTask.fromJson(Map<String,dynamic> j)=>MemoryTask(id:j['id'],title:j['title'],bucket:TaskBucket.values.byName(j['bucket']??'soon'),completed:j['completed']??false,deadline:j['deadline']==null?null:DateTime.tryParse(j['deadline']),note:j['note']??'',goalId:j['goalId'],tags:List<String>.from(j['tags']??const []),updatedAt:j['updatedAt']==null?DateTime(2000):DateTime.tryParse(j['updatedAt'])??DateTime(2000));
 }
 class WantItem {
   WantItem({required this.id,required this.title,this.status=WantStatus.interested,this.budget,this.timing='',this.waitingFor='',this.note='',List<String>? tags,DateTime? updatedAt}) : tags=tags??[], updatedAt=updatedAt??DateTime.now();
@@ -22,10 +22,10 @@ class FutureItem {
   factory FutureItem.fromJson(Map<String,dynamic> j)=>FutureItem(id:j['id'],title:j['title'],status:FutureStatus.values.byName(j['status']??'considering'),timing:j['timing']??'いつか',note:j['note']??'',scheduledAt:j['scheduledAt']==null?null:DateTime.tryParse(j['scheduledAt']),googleEventId:j['googleEventId'],tags:List<String>.from(j['tags']??const []),updatedAt:j['updatedAt']==null?DateTime(2000):DateTime.tryParse(j['updatedAt'])??DateTime(2000));
 }
 class MilestoneItem {
-  MilestoneItem({required this.id,required this.goalId,required this.title,this.progress=0,this.weight=1,this.note=''});
-  final String id,goalId; String title,note; double progress,weight;
-  Map<String,dynamic> toJson()=>{'id':id,'goalId':goalId,'title':title,'progress':progress,'weight':weight,'note':note};
-  factory MilestoneItem.fromJson(Map<String,dynamic> j)=>MilestoneItem(id:j['id'],goalId:j['goalId'],title:j['title'],progress:(j['progress']as num? ??0).toDouble(),weight:(j['weight']as num? ??1).toDouble(),note:j['note']??'');
+  MilestoneItem({required this.id,required this.goalId,required this.title,this.progress=0,this.weight=1,this.note='',DateTime? updatedAt}) : updatedAt=updatedAt??DateTime.now();
+  final String id,goalId; String title,note; double progress,weight; DateTime updatedAt;
+  Map<String,dynamic> toJson()=>{'id':id,'goalId':goalId,'title':title,'progress':progress,'weight':weight,'note':note,'updatedAt':updatedAt.toIso8601String()};
+  factory MilestoneItem.fromJson(Map<String,dynamic> j)=>MilestoneItem(id:j['id'],goalId:j['goalId'],title:j['title'],progress:(j['progress']as num? ??0).toDouble(),weight:(j['weight']as num? ??1).toDouble(),note:j['note']??'',updatedAt:j['updatedAt']==null?DateTime(2000):DateTime.tryParse(j['updatedAt'])??DateTime(2000));
 }
 class GoalItem {
   GoalItem({required this.id,required this.title,this.progress=0,this.deadline='',this.deadlineDate,this.why='',this.nextAction='',this.status=GoalStatus.active,List<String>? tags,DateTime? updatedAt}) : tags=tags??[], updatedAt=updatedAt??DateTime.now();
@@ -35,7 +35,7 @@ class GoalItem {
   factory GoalItem.fromJson(Map<String,dynamic> j)=>GoalItem(id:j['id'],title:j['title'],progress:(j['progress']as num? ??0).toDouble(),deadline:j['deadline']??'',deadlineDate:j['deadlineDate']==null?null:DateTime.tryParse(j['deadlineDate']),why:j['why']??'',nextAction:j['nextAction']??'',status:GoalStatus.values.byName(j['status']??'active'),tags:List<String>.from(j['tags']??const []),updatedAt:j['updatedAt']==null?DateTime(2000):DateTime.tryParse(j['updatedAt'])??DateTime(2000));
 }
 class InboxItem {
-  InboxItem({required this.id,required this.text,required this.createdAt}); final String id; String text; DateTime createdAt;
-  Map<String,dynamic> toJson()=>{'id':id,'text':text,'createdAt':createdAt.toIso8601String()};
-  factory InboxItem.fromJson(Map<String,dynamic> j)=>InboxItem(id:j['id'],text:j['text'],createdAt:DateTime.parse(j['createdAt']));
+  InboxItem({required this.id,required this.text,required this.createdAt,DateTime? updatedAt}) : updatedAt=updatedAt??createdAt; final String id; String text; DateTime createdAt,updatedAt;
+  Map<String,dynamic> toJson()=>{'id':id,'text':text,'createdAt':createdAt.toIso8601String(),'updatedAt':updatedAt.toIso8601String()};
+  factory InboxItem.fromJson(Map<String,dynamic> j)=>InboxItem(id:j['id'],text:j['text'],createdAt:DateTime.parse(j['createdAt']),updatedAt:j['updatedAt']==null?null:DateTime.tryParse(j['updatedAt']));
 }
