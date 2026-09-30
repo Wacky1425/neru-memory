@@ -24,7 +24,7 @@ class SettingsPage extends StatelessWidget{
         ListTile(leading:const Icon(Icons.analytics_outlined),title:const Text('データ概要'),subtitle:const Text('保存している項目数を確認'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const DataSummaryPage()))),
         ListTile(leading:const Icon(Icons.delete_outline),title:const Text('ゴミ箱'),subtitle:Text('${s.trash.length}件 · 30日後に自動削除'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const TrashPage()))),
         ListTile(leading:const Icon(Icons.data_object),title:const Text('JSONエクスポート'),subtitle:const Text('バックアップ用JSONをコピー'),onTap:()async{await Clipboard.setData(ClipboardData(text:s.exportJson()));if(c.mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('JSONをコピーしました')));}),
-        ListTile(leading:const Icon(Icons.cloud_done_outlined),title:const Text('Firestore同期'),subtitle:Text(s.cloudReady?'接続済み':s.cloudError??'Googleログイン後に同期'))])),
+        ListTile(leading:const Icon(Icons.cloud_done_outlined),title:const Text('Firestore同期'),subtitle:Text(s.cloudError!=null?'同期エラーあり':s.cloudBusy?'同期中…':s.cloudReady?'リアルタイム同期中':'Googleログイン後に同期')])),
       const SizedBox(height:20),const Center(child:Text('NeruMemory · sync enabled'))
     ])));
   }
@@ -38,7 +38,7 @@ class _UpdateTileState extends State<_UpdateTile>{
     try{
       final info=await AppUpdateService.instance.check();if(!mounted)return;
       if(info==null){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('最新版です')));return;}
-      final ok=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(title:const Text('アップデートがあります'),content:Text('Neru Memory ${info.version} をインストールしますか？'),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('あとで')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('更新する'))]));
+      final ok=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(title:const Text('アップデートがあります'),content:Text('NeruMemory ${info.version} をインストールしますか？'),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('あとで')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('更新する'))]));
       if(ok==true)await install(info);
     }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('更新確認に失敗しました: $e')));}
     finally{if(mounted)setState(()=>checking=false);}
