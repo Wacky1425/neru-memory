@@ -44,6 +44,10 @@ class AppState extends ChangeNotifier{
     }
   }
   void _changed(){notifyListeners();_save();if(!kIsWeb){AndroidWidgetBridge.instance.sync(this);}}
+  Future<void> _deleteCloud(String kind,String itemId)async{
+    final uid=_cloudUid;if(uid==null)return;
+    try{await CloudStore.instance.deleteItem(uid,kind,itemId);cloudError=null;}catch(e){cloudError='$e';}
+  }
   void _migrateLegacyTaskInbox(){final old=tasks.where((t)=>t.bucket==TaskBucket.inbox).toList();if(old.isEmpty)return;for(final t in old){inbox.add(InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);}_save();}
   void _purgeTrash(){final cut=DateTime.now().subtract(const Duration(days:30));trash.removeWhere((x)=>x.deletedAt.isBefore(cut));}
   Future<void> connectCloud(String uid) async {
@@ -108,14 +112,14 @@ class AppState extends ChangeNotifier{
   }
   void disconnectCloud(){_cloudUid=null;cloudReady=false;notifyListeners();}void setTheme(ThemeMode m){themeMode=m;_changed();}
   void toggleTask(MemoryTask t){t.completed=!t.completed;t.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncTask(t);}void addTask(String x,{TaskBucket bucket=TaskBucket.soon}){tasks.insert(0,MemoryTask(id:id(),title:x,bucket:bucket));_changed();}void updateTask(MemoryTask x){x.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncTask(x);}
-  void moveTaskToInbox(MemoryTask t){if(!kIsWeb)NotificationService.instance.cancelTask(t.id);inbox.insert(0,InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);_changed();}
-  void deleteTask(MemoryTask x){if(!kIsWeb)NotificationService.instance.cancelTask(x.id);trash.insert(0,TrashEntry(id:id(),type:'task',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));tasks.remove(x);_changed();}
-  void addWant(String x){wants.insert(0,WantItem(id:id(),title:x));_changed();}void updateWant(WantItem x){x.updatedAt=DateTime.now();_changed();}void deleteWant(WantItem x){rememberMeta.remove(_rememberKey('want',x.id));trash.insert(0,TrashEntry(id:id(),type:'want',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));wants.remove(x);_changed();}
-  void addFuture(String x){futures.insert(0,FutureItem(id:id(),title:x));_changed();}void updateFuture(FutureItem x){x.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncFuture(x);}void deleteFuture(FutureItem x){rememberMeta.remove(_rememberKey('future',x.id));if(!kIsWeb)NotificationService.instance.cancelFuture(x.id);trash.insert(0,TrashEntry(id:id(),type:'future',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));futures.remove(x);_changed();}
-  void addGoal(String x){goals.insert(0,GoalItem(id:id(),title:x));_changed();}void updateGoal(GoalItem x){x.updatedAt=DateTime.now();_changed();}void deleteGoal(GoalItem x){rememberMeta.remove(_rememberKey('goal',x.id));trash.insert(0,TrashEntry(id:id(),type:'goal',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));goals.remove(x);milestones.removeWhere((m)=>m.goalId==x.id);_changed();}
+  void moveTaskToInbox(MemoryTask t){if(!kIsWeb)NotificationService.instance.cancelTask(t.id);inbox.insert(0,InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);_deleteCloud('tasks',t.id);_changed();}
+  void deleteTask(MemoryTask x){if(!kIsWeb)NotificationService.instance.cancelTask(x.id);trash.insert(0,TrashEntry(id:id(),type:'task',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));tasks.remove(x);_deleteCloud('tasks',x.id);_changed();}
+  void addWant(String x){wants.insert(0,WantItem(id:id(),title:x));_changed();}void updateWant(WantItem x){x.updatedAt=DateTime.now();_changed();}void deleteWant(WantItem x){rememberMeta.remove(_rememberKey('want',x.id));trash.insert(0,TrashEntry(id:id(),type:'want',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));wants.remove(x);_deleteCloud('wants',x.id);_changed();}
+  void addFuture(String x){futures.insert(0,FutureItem(id:id(),title:x));_changed();}void updateFuture(FutureItem x){x.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncFuture(x);}void deleteFuture(FutureItem x){rememberMeta.remove(_rememberKey('future',x.id));if(!kIsWeb)NotificationService.instance.cancelFuture(x.id);trash.insert(0,TrashEntry(id:id(),type:'future',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));futures.remove(x);_deleteCloud('futures',x.id);_changed();}
+  void addGoal(String x){goals.insert(0,GoalItem(id:id(),title:x));_changed();}void updateGoal(GoalItem x){x.updatedAt=DateTime.now();_changed();}void deleteGoal(GoalItem x){rememberMeta.remove(_rememberKey('goal',x.id));trash.insert(0,TrashEntry(id:id(),type:'goal',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));goals.remove(x);_deleteCloud('goals',x.id);final removed=milestones.where((m)=>m.goalId==x.id).toList();milestones.removeWhere((m)=>m.goalId==x.id);for(final m in removed){_deleteCloud('milestones',m.id);}_changed();}
   void addMilestone(String gid,String x){milestones.add(MilestoneItem(id:id(),goalId:gid,title:x));_syncGoalFromMilestones(gid);_changed();}
   void updateMilestone(MilestoneItem x){x.updatedAt=DateTime.now();_syncGoalFromMilestones(x.goalId);_changed();}
-  void deleteMilestone(MilestoneItem x){final gid=x.goalId;milestones.remove(x);_syncGoalFromMilestones(gid);_changed();}
+  void deleteMilestone(MilestoneItem x){final gid=x.goalId;milestones.remove(x);_deleteCloud('milestones',x.id);_syncGoalFromMilestones(gid);_changed();}
   void _syncGoalFromMilestones(String gid){
     final ms=milestones.where((m)=>m.goalId==gid).toList();
     if(ms.isEmpty)return;
@@ -126,10 +130,10 @@ class AppState extends ChangeNotifier{
       if(g.id==gid){g.progress=value.clamp(0.0,1.0);g.updatedAt=DateTime.now();break;}
     }
   }
-  void addInbox(String x){inbox.insert(0,InboxItem(id:id(),text:x,createdAt:DateTime.now()));_changed();}void deleteInbox(InboxItem x){inbox.remove(x);_changed();}
-  void convertInbox(InboxItem x,String type){if(type=='task')tasks.insert(0,MemoryTask(id:id(),title:x.text,bucket:TaskBucket.soon));if(type=='want')wants.insert(0,WantItem(id:id(),title:x.text));if(type=='future')futures.insert(0,FutureItem(id:id(),title:x.text));if(type=='goal')goals.insert(0,GoalItem(id:id(),title:x.text));inbox.remove(x);_changed();}
+  void addInbox(String x){inbox.insert(0,InboxItem(id:id(),text:x,createdAt:DateTime.now()));_changed();}void deleteInbox(InboxItem x){inbox.remove(x);_deleteCloud('inbox',x.id);_changed();}
+  void convertInbox(InboxItem x,String type){if(type=='task')tasks.insert(0,MemoryTask(id:id(),title:x.text,bucket:TaskBucket.soon));if(type=='want')wants.insert(0,WantItem(id:id(),title:x.text));if(type=='future')futures.insert(0,FutureItem(id:id(),title:x.text));if(type=='goal')goals.insert(0,GoalItem(id:id(),title:x.text));inbox.remove(x);_deleteCloud('inbox',x.id);_changed();}
   void restoreTrash(TrashEntry x){try{if(x.type=='task')tasks.insert(0,MemoryTask.fromJson(x.data));if(x.type=='want')wants.insert(0,WantItem.fromJson(x.data));if(x.type=='future')futures.insert(0,FutureItem.fromJson(x.data));if(x.type=='goal')goals.insert(0,GoalItem.fromJson(x.data));trash.remove(x);_changed();for(final t in tasks){if(t.id==x.data['id'])if(!kIsWeb)NotificationService.instance.syncTask(t);}
-for(final f in futures){if(f.id==x.data['id'])if(!kIsWeb)NotificationService.instance.syncFuture(f);}}catch(_){}}void deleteTrashForever(TrashEntry x){trash.remove(x);_changed();}
+for(final f in futures){if(f.id==x.data['id'])if(!kIsWeb)NotificationService.instance.syncFuture(f);}}catch(_){}}void deleteTrashForever(TrashEntry x){trash.remove(x);_deleteCloud('trash',x.id);_changed();}
 
   String _rememberKey(String type,String itemId)=>'$type:$itemId';
 
