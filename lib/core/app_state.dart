@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,9 +20,9 @@ class AppState extends ChangeNotifier{
   AppState._(); ThemeMode themeMode=ThemeMode.light;
   final tasks=<MemoryTask>[],wants=<WantItem>[],futures=<FutureItem>[],goals=<GoalItem>[],milestones=<MilestoneItem>[],inbox=<InboxItem>[];
   final trash=<TrashEntry>[]; final rememberMeta=<String,DateTime>{}; SharedPreferences? _prefs; int _counter=100; String? _cloudUid; bool cloudReady=false,cloudBusy=false;String? cloudError;
-  static Future<AppState> load()async{final s=AppState._();s._prefs=await SharedPreferences.getInstance();final raw=s._prefs!.getString('neru_memory_state');if(raw==null){s._seed();await s._save();}else{try{s._restore(jsonDecode(raw));}catch(_){s._seed();}}s._migrateLegacyTaskInbox();s._purgeTrash();await NotificationService.instance.resyncAll(s.tasks,s.futures);return s;}
+  static Future<AppState> load()async{final s=AppState._();s._prefs=await SharedPreferences.getInstance();final raw=s._prefs!.getString('neru_memory_state');if(raw==null){s._seed();await s._save();}else{try{s._restore(jsonDecode(raw));}catch(_){s._seed();}}s._migrateLegacyTaskInbox();s._purgeTrash();return s;}
   String id()=>'${DateTime.now().microsecondsSinceEpoch}_${_counter++}';
-  void _seed(){tasks.addAll([MemoryTask(id:'t1',title:'Shortsを編集する',bucket:TaskBucket.today,goalId:'g2'),MemoryTask(id:'t2',title:'美容院を予約する',bucket:TaskBucket.today),MemoryTask(id:'t3',title:'DDR5価格を確認する',bucket:TaskBucket.soon)]);wants.add(WantItem(id:'w1',title:'PC更新',status:WantStatus.considering,budget:150000,waitingFor:'DDR5価格が落ち着いたら'));futures.addAll([FutureItem(id:'f1',title:'実家へ帰る',status:FutureStatus.planned,timing:'11月'),FutureItem(id:'f2',title:'温泉旅行',timing:'冬')]);goals.addAll([GoalItem(id:'g1',title:'バイクで日本一周',progress:.38,deadline:'2030年10月',why:'自分のバイクで日本を回り、写真として残す',nextAction:'バイク候補を3台まで絞る'),GoalItem(id:'g2',title:'YouTubeを成長させる',progress:.22,deadline:'継続',nextAction:'Shortsを1本編集する')]);}
+  void _seed(){tasks.addAll([MemoryTask(id:'t1',title:'Shorts繧堤ｷｨ髮・☆繧・,bucket:TaskBucket.today,goalId:'g2'),MemoryTask(id:'t2',title:'鄒主ｮｹ髯｢繧剃ｺ育ｴ・☆繧・,bucket:TaskBucket.today),MemoryTask(id:'t3',title:'DDR5萓｡譬ｼ繧堤｢ｺ隱阪☆繧・,bucket:TaskBucket.soon)]);wants.add(WantItem(id:'w1',title:'PC譖ｴ譁ｰ',status:WantStatus.considering,budget:150000,waitingFor:'DDR5萓｡譬ｼ縺瑚誠縺｡逹縺・◆繧・));futures.addAll([FutureItem(id:'f1',title:'螳溷ｮｶ縺ｸ蟶ｰ繧・,status:FutureStatus.planned,timing:'11譛・),FutureItem(id:'f2',title:'貂ｩ豕画羅陦・,timing:'蜀ｬ')]);goals.addAll([GoalItem(id:'g1',title:'繝舌う繧ｯ縺ｧ譌･譛ｬ荳蜻ｨ',progress:.38,deadline:'2030蟷ｴ10譛・,why:'閾ｪ蛻・・繝舌う繧ｯ縺ｧ譌･譛ｬ繧貞屓繧翫∝・逵溘→縺励※谿九☆',nextAction:'繝舌う繧ｯ蛟呵｣懊ｒ3蜿ｰ縺ｾ縺ｧ邨槭ｋ'),GoalItem(id:'g2',title:'YouTube繧呈・髟ｷ縺輔○繧・,progress:.22,deadline:'邯咏ｶ・,nextAction:'Shorts繧・譛ｬ邱ｨ髮・☆繧・)]);}
   void _restore(Map<String,dynamic>j){themeMode=ThemeMode.values.byName(j['themeMode']??'light');tasks.addAll((j['tasks']as List? ??[]).map((e)=>MemoryTask.fromJson(Map<String,dynamic>.from(e))));wants.addAll((j['wants']as List? ??[]).map((e)=>WantItem.fromJson(Map<String,dynamic>.from(e))));futures.addAll((j['futures']as List? ??[]).map((e)=>FutureItem.fromJson(Map<String,dynamic>.from(e))));goals.addAll((j['goals']as List? ??[]).map((e)=>GoalItem.fromJson(Map<String,dynamic>.from(e))));milestones.addAll((j['milestones']as List? ??[]).map((e)=>MilestoneItem.fromJson(Map<String,dynamic>.from(e))));inbox.addAll((j['inbox']as List? ??[]).map((e)=>InboxItem.fromJson(Map<String,dynamic>.from(e))));trash.addAll((j['trash']as List? ??[]).map((e)=>TrashEntry.fromJson(Map<String,dynamic>.from(e))));
     final rm=Map<String,dynamic>.from(j['rememberMeta']??const {});
     for(final e in rm.entries){final d=DateTime.tryParse('${e.value}');if(d!=null)rememberMeta[e.key]=d;}
@@ -43,7 +43,7 @@ class AppState extends ChangeNotifier{
       }
     }
   }
-  void _changed(){notifyListeners();_save();AndroidWidgetBridge.instance.sync(this);}
+  void _changed(){notifyListeners();_save();if(!kIsWeb){AndroidWidgetBridge.instance.sync(this);}}
   void _migrateLegacyTaskInbox(){final old=tasks.where((t)=>t.bucket==TaskBucket.inbox).toList();if(old.isEmpty)return;for(final t in old){inbox.add(InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);}_save();}
   void _purgeTrash(){final cut=DateTime.now().subtract(const Duration(days:30));trash.removeWhere((x)=>x.deletedAt.isBefore(cut));}
   Future<void> connectCloud(String uid) async {
@@ -152,20 +152,20 @@ for(final f in futures){if(f.id==x.data['id'])if(!kIsWeb)NotificationService.ins
     for(final w in wants){
       if(w.status==WantStatus.purchased||w.status==WantStatus.dropped)continue;
       final reason=w.waitingFor.isNotEmpty
-          ? '「${w.waitingFor}」のまま止まっています'
-          : w.timing.isNotEmpty?'${w.timing} · 最近見返していません':'買いたいものを再確認';
+          ? '縲・{w.waitingFor}縲阪・縺ｾ縺ｾ豁｢縺ｾ縺｣縺ｦ縺・∪縺・
+          : w.timing.isNotEmpty?'${w.timing} ﾂｷ 譛霑題ｦ玖ｿ斐＠縺ｦ縺・∪縺帙ｓ':'雋ｷ縺・◆縺・ｂ縺ｮ繧貞・遒ｺ隱・;
       add('want',w.id,w.title,w.updatedAt,reason);
     }
     for(final f in futures){
       if(f.status==FutureStatus.completed||f.status==FutureStatus.dropped)continue;
       if(f.scheduledAt!=null)continue;
-      add('future',f.id,f.title,f.updatedAt,'${f.timing} · 日時未定のままです');
+      add('future',f.id,f.title,f.updatedAt,'${f.timing} ﾂｷ 譌･譎よ悴螳壹・縺ｾ縺ｾ縺ｧ縺・);
     }
     for(final g in goals){
       if(g.status!=GoalStatus.active)continue;
       final reason=g.nextAction.isNotEmpty
-          ? '次の行動: ${g.nextAction}'
-          : '進め方を一度見直してみる';
+          ? '谺｡縺ｮ陦悟虚: ${g.nextAction}'
+          : '騾ｲ繧∵婿繧剃ｸ蠎ｦ隕狗峩縺励※縺ｿ繧・;
       add('goal',g.id,g.title,g.updatedAt,reason);
     }
     if(candidates.isEmpty)return null;
@@ -196,3 +196,4 @@ for(final f in futures){if(f.id==x.data['id'])if(!kIsWeb)NotificationService.ins
   }
 }
 class AppStateScope extends InheritedNotifier<AppState>{const AppStateScope({super.key,required AppState notifier,required super.child}):super(notifier:notifier);static AppState of(BuildContext c)=>c.dependOnInheritedWidgetOfExactType<AppStateScope>()!.notifier!;}
+

@@ -1,3 +1,5 @@
+﻿import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,14 +21,7 @@ Future<void> main() async {
     await Firebase.initializeApp();
   }
 
-  if (!kIsWeb) {
-    await NotificationService.instance.init();
-  }
-
   final state = await AppState.load();
-  if (!kIsWeb) {
-    await AndroidWidgetBridge.instance.init(state);
-  }
 
   runApp(
     AppStateScope(
@@ -34,4 +29,27 @@ Future<void> main() async {
       child: NeruMemoryApp(state: state),
     ),
   );
+
+  if (!kIsWeb) {
+    unawaited(_initAndroidServices(state));
+  }
 }
+
+Future<void> _initAndroidServices(AppState state) async {
+  try {
+    await NotificationService.instance.init();
+    await NotificationService.instance.resyncAll(
+      state.tasks,
+      state.futures,
+    );
+  } catch (e) {
+    debugPrint('Notification init failed: $e');
+  }
+
+  try {
+    await AndroidWidgetBridge.instance.init(state);
+  } catch (e) {
+    debugPrint('Widget init failed: $e');
+  }
+}
+
