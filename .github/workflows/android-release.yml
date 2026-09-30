@@ -1,5 +1,7 @@
 name: Build and publish Android APK
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: write
