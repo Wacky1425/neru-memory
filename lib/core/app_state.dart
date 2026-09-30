@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +20,7 @@ class RememberSuggestion {
 class AppState extends ChangeNotifier{
   AppState._(); ThemeMode themeMode=ThemeMode.light;
   final tasks=<MemoryTask>[],wants=<WantItem>[],futures=<FutureItem>[],goals=<GoalItem>[],milestones=<MilestoneItem>[],inbox=<InboxItem>[];
-  final trash=<TrashEntry>[]; final rememberMeta=<String,DateTime>{}; SharedPreferences? _prefs; int _counter=100; String? _cloudUid; bool cloudReady=false,cloudBusy=false;String? cloudError;
+  final trash=<TrashEntry>[]; final rememberMeta=<String,DateTime>{}; SharedPreferences? _prefs; int _counter=100; String? _cloudUid; StreamSubscription<void>? _cloudSub; bool cloudReady=false,cloudBusy=false;String? cloudError;
   static Future<AppState> load()async{final s=AppState._();s._prefs=await SharedPreferences.getInstance();final raw=s._prefs!.getString('neru_memory_state');if(raw==null){await s._save();}else{try{s._restore(jsonDecode(raw));}catch(_){await s._save();}}s._migrateLegacyTaskInbox();s._purgeTrash();return s;}
   String id()=>'${DateTime.now().microsecondsSinceEpoch}_${_counter++}';
   void _seed(){tasks.addAll([MemoryTask(id:'t1',title:'Shortsを編集する',bucket:TaskBucket.today,goalId:'g2'),MemoryTask(id:'t2',title:'美容院を予約する',bucket:TaskBucket.today),MemoryTask(id:'t3',title:'DDR5価格を確認する',bucket:TaskBucket.soon)]);wants.add(WantItem(id:'w1',title:'PC更新',status:WantStatus.considering,budget:150000,waitingFor:'DDR5価格が落ち着いたら'));futures.addAll([FutureItem(id:'f1',title:'実家へ帰る',status:FutureStatus.planned,timing:'11月'),FutureItem(id:'f2',title:'温泉旅行',timing:'冬')]);goals.addAll([GoalItem(id:'g1',title:'バイクで日本一周',progress:.38,deadline:'2030年10月',why:'自分のバイクで日本を回り、写真として残す',nextAction:'バイク候補を3台まで絞る'),GoalItem(id:'g2',title:'YouTubeを成長させる',progress:.22,deadline:'継続',nextAction:'Shortsを1本編集する')]);}
@@ -63,6 +64,13 @@ class AppState extends ChangeNotifier{
       await _prefs?.setString('neru_memory_state', jsonEncode(_snapshot()));
       cloudReady = true;
       cloudError = null;
+      await _cloudSub?.cancel();
+      _cloudSub=CloudStore.instance.watchItemState(uid,(remote){
+        _mergeRemote(remote);
+        _prefs?.setString('neru_memory_state',jsonEncode(_snapshot()));
+        notifyListeners();
+        if(!kIsWeb){AndroidWidgetBridge.instance.sync(this);}
+      });
     } catch (e) {
       // Offline startup must still enter the app using SharedPreferences.
       cloudError = '$e';
@@ -110,7 +118,7 @@ class AppState extends ChangeNotifier{
     final rm=Map<String,dynamic>.from(r['rememberMeta']??const {});
     for(final e in rm.entries){final d=DateTime.tryParse('${e.value}');if(d!=null)rememberMeta[e.key]=d;}
   }
-  void disconnectCloud(){_cloudUid=null;cloudReady=false;notifyListeners();}void setTheme(ThemeMode m){themeMode=m;_changed();}
+  void disconnectCloud(){_cloudSub?.cancel();_cloudSub=null;_cloudUid=null;cloudReady=false;notifyListeners();}void setTheme(ThemeMode m){themeMode=m;_changed();}
   void toggleTask(MemoryTask t){t.completed=!t.completed;t.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncTask(t);}void addTask(String x,{TaskBucket bucket=TaskBucket.soon}){tasks.insert(0,MemoryTask(id:id(),title:x,bucket:bucket));_changed();}void updateTask(MemoryTask x){x.updatedAt=DateTime.now();_changed();if(!kIsWeb)NotificationService.instance.syncTask(x);}
   void moveTaskToInbox(MemoryTask t){if(!kIsWeb)NotificationService.instance.cancelTask(t.id);inbox.insert(0,InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);_deleteCloud('tasks',t.id);_changed();}
   void deleteTask(MemoryTask x){if(!kIsWeb)NotificationService.instance.cancelTask(x.id);trash.insert(0,TrashEntry(id:id(),type:'task',title:x.title,data:x.toJson(),deletedAt:DateTime.now()));tasks.remove(x);_deleteCloud('tasks',x.id);_changed();}

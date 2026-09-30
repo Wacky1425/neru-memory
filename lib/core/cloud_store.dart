@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Item-level Firestore storage. Firestore's local persistence queues writes
@@ -64,6 +65,25 @@ class CloudStore {
       'schemaVersion': 2,
       'cloudUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  StreamSubscription<void> watchItemState(String uid, void Function(Map<String,dynamic>) onData) {
+    final latest=<String,dynamic>{};
+    final ready=<String>{};
+    final controller=StreamController<void>();
+    final subs=<StreamSubscription<QuerySnapshot<Map<String,dynamic>>>>[];
+
+    void emit(String kind,QuerySnapshot<Map<String,dynamic>> snap){
+      latest[kind]=snap.docs.map((d)=>d.data()).toList();
+      ready.add(kind);
+      if(ready.length==kinds.length)onData(Map<String,dynamic>.from(latest));
+    }
+
+    for(final kind in kinds){
+      subs.add(_items(uid,kind).snapshots().listen((snap)=>emit(kind,snap)));
+    }
+    controller.onCancel=()async{for(final s in subs){await s.cancel();}};
+    return controller.stream.listen((_){});
   }
 
   Future<void> deleteItem(String uid, String kind, String id) async {
