@@ -15,6 +15,8 @@ class CloudStore {
       _db.collection('users').doc(uid).collection(kind);
   DocumentReference<Map<String, dynamic>> _settings(String uid) =>
       _db.collection('users').doc(uid).collection('app').doc('settings');
+  CollectionReference<Map<String, dynamic>> _deletions(String uid) =>
+      _db.collection('users').doc(uid).collection('deletions');
 
   static const kinds = <String>[
     'tasks','wants','futures','goals','milestones','inbox','trash'
@@ -72,6 +74,7 @@ class CloudStore {
     final ready=<String>{};
     final controller=StreamController<void>();
     final subs=<StreamSubscription<QuerySnapshot<Map<String,dynamic>>>>[];
+    StreamSubscription<QuerySnapshot<Map<String,dynamic>>>? deletionSub;
 
     void emit(String kind,QuerySnapshot<Map<String,dynamic>> snap){
       latest[kind]=snap.docs.map((d)=>d.data()).toList();
@@ -82,11 +85,24 @@ class CloudStore {
     for(final kind in kinds){
       subs.add(_items(uid,kind).snapshots().listen((snap)=>emit(kind,snap)));
     }
-    controller.onCancel=()async{for(final s in subs){await s.cancel();}};
+    deletionSub=_deletions(uid).snapshots().listen((snap){
+      latest['deletions']=snap.docs.map((d)=>d.data()).toList();
+      if(ready.length==kinds.length)onData(Map<String,dynamic>.from(latest));
+    });
+    controller.onCancel=()async{
+      for(final s in subs){await s.cancel();}
+      await deletionSub?.cancel();
+    };
     return controller.stream.listen((_){});
   }
 
   Future<void> deleteItem(String uid, String kind, String id) async {
+    final tombstoneId='${kind}_${id}';
+    await _deletions(uid).doc(tombstoneId).set({
+      'kind':kind,
+      'itemId':id,
+      'deletedAt':FieldValue.serverTimestamp(),
+    },SetOptions(merge:true));
     await _items(uid, kind).doc(id).delete();
   }
 

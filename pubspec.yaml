@@ -1,7 +1,7 @@
 name: neru_memory
 description: Neru Memory
 publish_to: 'none'
-version: 1.13.0+18
+version: 1.14.0+19
 environment:
   sdk: ^3.12.2
 dependencies:

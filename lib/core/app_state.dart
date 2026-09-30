@@ -97,6 +97,25 @@ class AppState extends ChangeNotifier{
   }
 
   void _mergeRemote(Map<String,dynamic> r) {
+    final deleted=<String,Set<String>>{};
+    for(final raw in (r['deletions'] as List? ?? const [])){
+      final d=Map<String,dynamic>.from(raw as Map);
+      final kind='${d['kind']}', itemId='${d['itemId']}';
+      if(kind.isNotEmpty&&itemId.isNotEmpty){
+        (deleted[kind]??=<String>{}).add(itemId);
+      }
+    }
+    tasks.removeWhere((x)=>deleted['tasks']?.contains(x.id)??false);
+    wants.removeWhere((x)=>deleted['wants']?.contains(x.id)??false);
+    futures.removeWhere((x)=>deleted['futures']?.contains(x.id)??false);
+    goals.removeWhere((x)=>deleted['goals']?.contains(x.id)??false);
+    milestones.removeWhere((x)=>deleted['milestones']?.contains(x.id)??false);
+    inbox.removeWhere((x)=>deleted['inbox']?.contains(x.id)??false);
+    trash.removeWhere((x)=>deleted['trash']?.contains(x.id)??false);
+    for(final kind in CloudStore.kinds){
+      final ids=deleted[kind];
+      if(ids!=null){(r[kind] as List? ?? const []).removeWhere((raw)=>ids.contains('${(raw as Map)['id']}'));}
+    }
     final mt = _mergeById(tasks, r['tasks'] as List? ?? const [], (x)=>x.id,
         (x)=>x.updatedAt, MemoryTask.fromJson); tasks..clear()..addAll(mt);
     final mw = _mergeById(wants, r['wants'] as List? ?? const [], (x)=>x.id,
