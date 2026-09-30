@@ -96,6 +96,25 @@ class CloudStore {
     return controller.stream.listen((_){});
   }
 
+  Future<void> saveItem(String uid,String kind,Map<String,dynamic> raw) async {
+    final data=Map<String,dynamic>.from(raw);
+    final id='${data['id']}';
+    if(id.isEmpty)return;
+    await _items(uid,kind).doc(id).set({
+      ...data,
+      'cloudUpdatedAt':FieldValue.serverTimestamp(),
+    },SetOptions(merge:true));
+  }
+
+  Future<void> saveSettings(String uid,Map<String,dynamic> state) async {
+    await _settings(uid).set({
+      'themeMode':state['themeMode'],
+      'rememberMeta':state['rememberMeta']??<String,dynamic>{},
+      'schemaVersion':3,
+      'cloudUpdatedAt':FieldValue.serverTimestamp(),
+    },SetOptions(merge:true));
+  }
+
   Future<void> deleteItem(String uid, String kind, String id) async {
     final tombstoneId='${kind}_${id}';
     await _deletions(uid).doc(tombstoneId).set({
