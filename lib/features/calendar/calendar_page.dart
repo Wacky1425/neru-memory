@@ -137,7 +137,7 @@ class _CalendarPageState extends State<CalendarPage> {
     ];
     return Scaffold(
       appBar:AppBar(title:const Text('カレンダー',style:TextStyle(fontWeight:FontWeight.w800)),
-        actions:[if(connected)IconButton(onPressed:load,icon:const Icon(Icons.refresh))]),
+        actions:[IconButton(tooltip:'今日へ',onPressed:(){final n=DateTime.now();setState((){selected=n;month=DateTime(n.year,n.month);});if(connected)load();},icon:const Icon(Icons.today)),if(connected)IconButton(onPressed:load,icon:const Icon(Icons.refresh))]),
       body:PageWrap(child:ListView(padding:const EdgeInsets.fromLTRB(16,8,16,100),children:[
         Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(children:[
           Row(children:[
@@ -152,7 +152,7 @@ class _CalendarPageState extends State<CalendarPage> {
           subtitle:const Text('Google予定をNeru Memoryに表示します'),
           trailing:busy?const SizedBox.square(dimension:24,child:CircularProgressIndicator()):FilledButton(onPressed:connect,child:const Text('接続')))),
         if(error!=null) Card(child:ListTile(leading:Icon(Icons.error_outline,color:Theme.of(context).colorScheme.error),title:Text(error!),trailing:IconButton(icon:const Icon(Icons.refresh),onPressed:connected?load:connect))),
-        SectionTitle('${selected.month}/${selected.day} の予定'),
+        Row(children:[Expanded(child:SectionTitle('${selected.month}/${selected.day} の予定')),Text('${dayEvents.length+local.length+tasks.length}件',style:Theme.of(context).textTheme.labelLarge)]),
         if(dayEvents.isEmpty&&local.isEmpty&&tasks.isEmpty) const EmptyHint('予定はありません'),
         for(final t in tasks) Card(child:ListTile(
           leading:Checkbox(value:t.completed,onChanged:(_)=>state.toggleTask(t)),
