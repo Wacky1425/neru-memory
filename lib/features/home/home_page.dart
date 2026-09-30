@@ -33,7 +33,7 @@ class _HomePageState extends State<HomePage>{
     final upcomingGoogle=google.where((e)=>e.start.isAfter(now)&&!same(e.start,now)&&!linkedIds.contains(e.id)).toList();
     final goals=s.goals.where((g)=>g.status==GoalStatus.active).take(3).toList();
     final remember=s.rememberSuggestion;
-    return Scaffold(appBar:AppBar(title:const Text('Neru Memory',style:TextStyle(fontWeight:FontWeight.w800)),actions:[
+    return Scaffold(appBar:AppBar(title:const Text('NeruMemory',style:TextStyle(fontWeight:FontWeight.w800)),actions:[
       Stack(children:[IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const InboxPage())),icon:const Icon(Icons.inbox_outlined)),if(s.inbox.isNotEmpty)Positioned(right:7,top:6,child:CircleAvatar(radius:8,child:Text('${s.inbox.length}',style:const TextStyle(fontSize:9))))]),
       IconButton(onPressed:()=>showSearch(context:context,delegate:MemorySearch(s)),icon:const Icon(Icons.search)),
     ]),body:PageWrap(child:RefreshIndicator(onRefresh:refreshGoogle,child:ListView(padding:const EdgeInsets.fromLTRB(18,4,18,100),children:[
@@ -62,7 +62,7 @@ class _HomePageState extends State<HomePage>{
       for(final e in upcomingGoogle.take(3))ListTile(leading:const Icon(Icons.event_outlined),title:Text(e.title),subtitle:Text('${e.start.month}/${e.start.day} ${_time(e.start)} · Google')),
       for(final t in upcomingTasks.take(3))ListTile(leading:const Icon(Icons.task_alt),title:Text(t.title),subtitle:Text('期限 ${formatMemoryDateTime(t.deadline)}')),
       for(final f in upcomingFuture.take(3))ListTile(leading:const Icon(Icons.push_pin_outlined),title:Text(f.title),subtitle:Text(formatMemoryDateTime(f.scheduledAt))),
-      const SectionTitle('GOALS'),for(final g in goals)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text(g.title,style:const TextStyle(fontWeight:FontWeight.bold))),Text('${(g.progress*100).round()}%')]),const SizedBox(height:8),LinearProgressIndicator(value:g.progress.clamp(0.0,1.0)),if(g.nextAction.isNotEmpty)...[const SizedBox(height:8),Text(g.nextAction)]]))),
+      const SectionTitle('GOALS'),for(final g in goals)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text(g.title,style:const TextStyle(fontWeight:FontWeight.bold))),Text('${(g.progress*100).round()}%')]),const SizedBox(height:8),LinearProgressIndicator(value:g.progress.clamp(0.0,1.0)),if(g.nextAction.isNotEmpty)...[const SizedBox(height:8),Row(children:[Expanded(child:Text(g.nextAction)),IconButton(tooltip:'Task化',onPressed:()=>s.addTaskFromGoal(g),icon:const Icon(Icons.add_task))])]]))),
       const SectionTitle('REMEMBER'),
       if(remember==null)
         const EmptyHint('今は思い出すものはありません')
