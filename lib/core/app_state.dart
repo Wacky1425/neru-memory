@@ -164,6 +164,11 @@ class AppState extends ChangeNotifier{
   void toggleTask(MemoryTask t){t.completed=!t.completed;t.updatedAt=DateTime.now();_changed();_saveCloudItem('tasks',t.toJson());if(!kIsWeb)NotificationService.instance.syncTask(t);}
   void addTask(String x,{TaskBucket bucket=TaskBucket.soon}){final t=MemoryTask(id:id(),title:x,bucket:bucket);tasks.insert(0,t);_changed();_saveCloudItem('tasks',t.toJson());}
   void updateTask(MemoryTask x){x.updatedAt=DateTime.now();_changed();_saveCloudItem('tasks',x.toJson());if(!kIsWeb)NotificationService.instance.syncTask(x);}
+  void rescheduleTask(MemoryTask t,DateTime deadline,{TaskBucket bucket=TaskBucket.today}){
+    t.deadline=DateTime(deadline.year,deadline.month,deadline.day);
+    t.bucket=bucket;t.updatedAt=DateTime.now();_changed();_saveCloudItem('tasks',t.toJson());
+    if(!kIsWeb)NotificationService.instance.syncTask(t);
+  }
   void addTaskFromGoal(GoalItem g){final title=g.nextAction.trim();if(title.isEmpty)return;final t=MemoryTask(id:id(),title:title,bucket:TaskBucket.soon,goalId:g.id);tasks.insert(0,t);_changed();_saveCloudItem('tasks',t.toJson());}
   void moveTaskToInbox(MemoryTask t){if(!kIsWeb)NotificationService.instance.cancelTask(t.id);final v=InboxItem(id:id(),text:t.title,createdAt:DateTime.now());inbox.insert(0,v);tasks.remove(t);_deleteCloud('tasks',t.id);_changed();_saveCloudItem('inbox',v.toJson());}
   void deleteTask(MemoryTask x){if(!kIsWeb)NotificationService.instance.cancelTask(x.id);final e=TrashEntry(id:id(),type:'task',title:x.title,data:x.toJson(),deletedAt:DateTime.now());trash.insert(0,e);tasks.remove(x);_saveCloudItem('trash',e.toJson());_deleteCloud('tasks',x.id);_changed();}
