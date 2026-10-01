@@ -3,6 +3,7 @@ import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../widgets/common.dart';
 import '../lists/editors.dart';
+import '../goals/goals_page.dart';
 
 class InboxPage extends StatelessWidget {
   const InboxPage({super.key});
@@ -18,9 +19,7 @@ class InboxPage extends StatelessWidget {
       case 'future':
         await editFuture(context, state.futures.first);
       case 'goal':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('目標に整理しました')),
-        );
+        await openGoalDetail(context, state.goals.first);
     }
   }
 
