@@ -84,6 +84,22 @@ class _FutureDialogState extends State<_FutureDialog> {
       item.status = scheduledAt == null ? status : FutureStatus.scheduled;
       item.note = note.text.trim();
       item.tags = _parseTags(tags.text);
+
+      // Once a Future has a concrete date/time, make Google Calendar the
+      // durable schedule automatically when Calendar authorization exists.
+      if (!linked && scheduledAt != null) {
+        final connected = GoogleCalendarService.instance.isConnected ||
+            await GoogleCalendarService.instance.restoreConnection();
+        if (connected) {
+          final created = await GoogleCalendarService.instance.createEvent(
+            title: newTitle,
+            start: scheduledAt!,
+            description: note.text.trim(),
+          );
+          item.googleEventId = created.id;
+        }
+      }
+
       state.updateFuture(item);
       if (mounted) Navigator.pop(context);
     } catch (_) {
