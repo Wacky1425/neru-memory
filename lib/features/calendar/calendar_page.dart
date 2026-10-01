@@ -83,6 +83,8 @@ class _CalendarPageState extends State<CalendarPage> {
         .where((future) => future.googleEventId != null)
         .toList();
 
+    var pulledChanges = 0;
+    var removedLinks = 0;
     for (final future in linked) {
       final eventId = future.googleEventId!;
       CalendarEventItem? googleEvent;
@@ -97,6 +99,7 @@ class _CalendarPageState extends State<CalendarPage> {
       if (googleEvent == null) {
         future.googleEventId = null;
         state.updateFuture(future);
+        removedLinks++;
         continue;
       }
 
@@ -110,7 +113,17 @@ class _CalendarPageState extends State<CalendarPage> {
         future.scheduledAt = googleEvent.start;
         future.status = FutureStatus.scheduled;
         state.updateFuture(future);
+        pulledChanges++;
       }
+    }
+    if (mounted && (pulledChanges > 0 || removedLinks > 0)) {
+      final parts = <String>[
+        if (pulledChanges > 0) 'Google側の変更を$pulledChanges件反映',
+        if (removedLinks > 0) '削除済み予定の連携を$removedLinks件解除',
+      ];
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(parts.join(' · '))),
+      );
     }
   }
 
