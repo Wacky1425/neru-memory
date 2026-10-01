@@ -3,6 +3,7 @@ import '../../core/app_state.dart';
 import '../../core/models.dart';
 import '../../widgets/common.dart';
 import '../lists/editors.dart';
+import '../goals/goals_page.dart';
 
 class TagResultsPage extends StatelessWidget {
   const TagResultsPage({super.key, required this.tag});
@@ -63,6 +64,7 @@ class TagResultsPage extends StatelessWidget {
                         leading: const Icon(Icons.flag_outlined),
                         title: Text(x.title),
                         subtitle: Text('${(x.progress * 100).round()}%${x.deadlineLabel.isEmpty ? '' : ' · ${x.deadlineLabel}'}'),
+                        onTap: () => openGoalDetail(context, x),
                       )),
                   ],
                 ],
