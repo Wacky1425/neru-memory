@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import '../tags/tag_results_page.dart';import 'editors.dart';
+import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import '../tags/tag_results_page.dart';import '../tags/tags_page.dart';import 'editors.dart';
 
 Widget _taggedSubtitle(BuildContext context,List<String> lines,List<String> tags){
   final text=lines.where((e)=>e.trim().isNotEmpty).join(' · ');
@@ -18,7 +18,7 @@ Widget _taggedSubtitle(BuildContext context,List<String> lines,List<String> tags
   ]);
 }
 
-class ListsPage extends StatefulWidget{const ListsPage({super.key});@override State<ListsPage>createState()=>_ListsPageState();}class _ListsPageState extends State<ListsPage>with SingleTickerProviderStateMixin{late final TabController controller=TabController(length:3,vsync:this);@override void dispose(){controller.dispose();super.dispose();}@override Widget build(BuildContext c){final s=AppStateScope.of(c);return Scaffold(appBar:AppBar(title:const Text('リスト',style:TextStyle(fontWeight:FontWeight.w800)),actions:[TextButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const InboxPage())),icon:const Icon(Icons.inbox_outlined),label:Text('未分類 ${s.inbox.length}'))],bottom:TabBar(controller:controller,tabs:const[Tab(text:'やること'),Tab(text:'買いたい'),Tab(text:'予定候補')])),body:PageWrap(child:TabBarView(controller:controller,children:const[_Tasks(),_Wants(),_Futures()])));}}
+class ListsPage extends StatefulWidget{const ListsPage({super.key});@override State<ListsPage>createState()=>_ListsPageState();}class _ListsPageState extends State<ListsPage>with SingleTickerProviderStateMixin{late final TabController controller=TabController(length:3,vsync:this);@override void dispose(){controller.dispose();super.dispose();}@override Widget build(BuildContext c){final s=AppStateScope.of(c);return Scaffold(appBar:AppBar(title:const Text('リスト',style:TextStyle(fontWeight:FontWeight.w800)),actions:[IconButton(tooltip:'タグ',onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const TagsPage())),icon:const Icon(Icons.tag)),TextButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const InboxPage())),icon:const Icon(Icons.inbox_outlined),label:Text('未分類 ${s.inbox.length}'))],bottom:TabBar(controller:controller,tabs:const[Tab(text:'やること'),Tab(text:'買いたい'),Tab(text:'予定候補')])),body:PageWrap(child:TabBarView(controller:controller,children:const[_Tasks(),_Wants(),_Futures()])));}}
 class _Tasks extends StatefulWidget{const _Tasks();@override State<_Tasks> createState()=>_TasksState();}
 class _TasksState extends State<_Tasks>{
   bool showCompleted=false;
