@@ -190,12 +190,15 @@ class AppState extends ChangeNotifier{
     }
   }
   void addInbox(String x){final v=InboxItem(id:id(),text:x,createdAt:DateTime.now());inbox.insert(0,v);_changed();_saveCloudItem('inbox',v.toJson());}void deleteInbox(InboxItem x){inbox.remove(x);_deleteCloud('inbox',x.id);_changed();}
-  void convertInbox(InboxItem x,String type){
-    if(type=='task'){final v=MemoryTask(id:id(),title:x.text,bucket:TaskBucket.soon);tasks.insert(0,v);_saveCloudItem('tasks',v.toJson());}
-    if(type=='want'){final v=WantItem(id:id(),title:x.text);wants.insert(0,v);_saveCloudItem('wants',v.toJson());}
-    if(type=='future'){final v=FutureItem(id:id(),title:x.text);futures.insert(0,v);_saveCloudItem('futures',v.toJson());}
-    if(type=='goal'){final v=GoalItem(id:id(),title:x.text);goals.insert(0,v);_saveCloudItem('goals',v.toJson());}
+  Object? convertInbox(InboxItem x,String type){
+    Object? created;
+    if(type=='task'){final v=MemoryTask(id:id(),title:x.text,bucket:TaskBucket.soon);tasks.insert(0,v);_saveCloudItem('tasks',v.toJson());created=v;}
+    if(type=='want'){final v=WantItem(id:id(),title:x.text);wants.insert(0,v);_saveCloudItem('wants',v.toJson());created=v;}
+    if(type=='future'){final v=FutureItem(id:id(),title:x.text);futures.insert(0,v);_saveCloudItem('futures',v.toJson());created=v;}
+    if(type=='goal'){final v=GoalItem(id:id(),title:x.text);goals.insert(0,v);_saveCloudItem('goals',v.toJson());created=v;}
+    if(created==null)return null;
     inbox.remove(x);_deleteCloud('inbox',x.id);_changed();
+    return created;
   }
   void restoreTrash(TrashEntry x){
     try{
