@@ -78,8 +78,11 @@ class _FutureDialogState extends State<_FutureDialog> {
     }
 
     setState(() => saving = true);
-    try {
-      if (linked) {
+
+    // Existing linked events stay transactional: only save locally after the
+    // Google update succeeds, so both sides do not silently diverge.
+    if (linked) {
+      try {
         await GoogleCalendarService.instance.updateEvent(
           CalendarEventItem(
             id: widget.item.googleEventId!,
@@ -89,19 +92,26 @@ class _FutureDialogState extends State<_FutureDialog> {
             description: note.text.trim(),
           ),
         );
+      } catch (_) {
+        if (mounted) {
+          setState(() => saving = false);
+          _message('Google Calendarへの反映に失敗しました。接続を確認して再試行してください。');
+        }
+        return;
       }
+    }
 
-      final item = widget.item;
-      item.title = newTitle;
-      item.timing = timing.text.trim();
-      item.scheduledAt = scheduledAt;
-      item.status = scheduledAt == null ? status : FutureStatus.scheduled;
-      item.note = note.text.trim();
-      item.tags = _parseTags(tags.text);
+    final item = widget.item;
+    item.title = newTitle;
+    item.timing = timing.text.trim();
+    item.scheduledAt = scheduledAt;
+    item.status = scheduledAt == null ? status : FutureStatus.scheduled;
+    item.note = note.text.trim();
+    item.tags = _parseTags(tags.text);
 
-      // Once a Future has a concrete date/time, make Google Calendar the
-      // durable schedule automatically when Calendar authorization exists.
-      if (!linked && scheduledAt != null) {
+    var calendarFailed = false;
+    if (!linked && scheduledAt != null) {
+      try {
         final connected = GoogleCalendarService.instance.isConnected ||
             await GoogleCalendarService.instance.restoreConnection();
         if (connected) {
@@ -112,15 +122,20 @@ class _FutureDialogState extends State<_FutureDialog> {
           );
           item.googleEventId = created.id;
         }
+      } catch (_) {
+        calendarFailed = true;
       }
+    }
 
-      state.updateFuture(item);
-      if (mounted) Navigator.pop(context);
-    } catch (_) {
-      if (mounted) {
-        setState(() => saving = false);
-        _message('Google Calendarへの反映に失敗しました。接続を確認して再試行してください。');
-      }
+    // A new/unlinked Future must never be lost just because Google Calendar
+    // is temporarily unavailable.
+    state.updateFuture(item);
+    if (!mounted) return;
+    Navigator.pop(context);
+    if (calendarFailed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Futureは保存しました。Google Calendarへの追加だけ失敗しました。')),
+      );
     }
   }
 
