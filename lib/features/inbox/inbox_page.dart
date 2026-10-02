@@ -9,18 +9,12 @@ class InboxPage extends StatelessWidget {
   const InboxPage({super.key});
 
   Future<void> _classify(BuildContext context, AppState state, InboxItem item, String type) async {
-    state.convertInbox(item, type);
-    if (!context.mounted) return;
-    switch (type) {
-      case 'task':
-        await editTask(context, state.tasks.first);
-      case 'want':
-        await editWant(context, state.wants.first);
-      case 'future':
-        await editFuture(context, state.futures.first);
-      case 'goal':
-        await openGoalDetail(context, state.goals.first);
-    }
+    final created = state.convertInbox(item, type);
+    if (!context.mounted || created == null) return;
+    if (created is MemoryTask) await editTask(context, created);
+    if (created is WantItem) await editWant(context, created);
+    if (created is FutureItem) await editFuture(context, created);
+    if (created is GoalItem) await openGoalDetail(context, created);
   }
 
   Future<void> _chooseType(BuildContext context, AppState state, InboxItem item) async {
