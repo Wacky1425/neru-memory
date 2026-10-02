@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import '../tags/tag_results_page.dart';import '../tags/tags_page.dart';import 'editors.dart';
+import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import '../tags/tag_results_page.dart';import '../tags/tags_page.dart';import '../goals/goals_page.dart';import 'editors.dart';
 
 Widget _taggedSubtitle(BuildContext context,List<String> lines,List<String> tags){
   final text=lines.where((e)=>e.trim().isNotEmpty).join(' · ');
@@ -49,7 +49,7 @@ class _TasksState extends State<_Tasks>{
       if(direction==DismissDirection.startToEnd){s.toggleTask(t);return false;}
       await _quickTask(c,s,t);return false;
     },
-    child:Card(child:CheckboxListTile(value:t.completed,onChanged:(_)=>s.toggleTask(t),title:Text(t.title,style:overdue?const TextStyle(fontWeight:FontWeight.w700):null),subtitle:_taggedSubtitle(c,[if(overdue&&t.deadline!=null)'期限 '+t.deadline!.month.toString()+'/'+t.deadline!.day.toString(),t.note],t.tags),controlAffinity:ListTileControlAffinity.leading,secondary:IconButton(icon:const Icon(Icons.more_horiz),onPressed:()=>_quickTask(c,s,t))))
+    child:Card(child:CheckboxListTile(value:t.completed,onChanged:(_)=>s.toggleTask(t),title:Text(t.title,style:overdue?const TextStyle(fontWeight:FontWeight.w700):null),subtitle:_taggedSubtitle(c,[if(overdue&&t.deadline!=null)'期限 '+t.deadline!.month.toString()+'/'+t.deadline!.day.toString(),if(t.goalId!=null)'目標: '+(s.goals.where((g)=>g.id==t.goalId).firstOrNull?.title??'リンク切れ'),t.note],t.tags),controlAffinity:ListTileControlAffinity.leading,secondary:IconButton(icon:const Icon(Icons.more_horiz),onPressed:()=>_quickTask(c,s,t))))
   );
   @override Widget build(BuildContext c){final s=AppStateScope.of(c);final now=DateTime.now();final start=DateTime(now.year,now.month,now.day);final overdue=s.tasks.where((t)=>!t.completed&&t.deadline!=null&&t.deadline!.isBefore(start)).toList()..sort((a,b)=>a.deadline!.compareTo(b.deadline!));return ListView(padding:const EdgeInsets.fromLTRB(16,12,16,100),children:[
 if(overdue.isNotEmpty)...[const SectionTitle('期限超過'),...overdue.map((t)=>_taskCard(c,s,t,overdue:true))],
