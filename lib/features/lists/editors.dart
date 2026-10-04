@@ -22,7 +22,7 @@ class _TaskDialogState extends State<_TaskDialog>{late final TextEditingControll
       title:const Text('関連する目標'),
       subtitle:Text(goal.title),
       trailing:const Icon(Icons.chevron_right),
-      onTap:()=>openGoalDetail(context,goal),
+      onTap:()async{Navigator.pop(c);await Future<void>.delayed(Duration.zero);if(context.mounted)await openGoalDetail(context,goal);},
     );
   }),
 ],TextField(controller:note,maxLines:3,decoration:const InputDecoration(labelText:'メモ')),TextField(controller:tags,decoration:const InputDecoration(labelText:'タグ',hintText:'仕事, 買い物, 旅行'))])),actions:[TextButton(onPressed:(){s.deleteTask(widget.task);Navigator.pop(c);},child:const Text('削除')),TextButton(onPressed:(){widget.task.title=title.text.trim().isEmpty?widget.task.title:title.text.trim();s.moveTaskToInbox(widget.task);Navigator.pop(c);},child:const Text('未分類へ戻す')),FilledButton(onPressed:(){if(title.text.trim().isNotEmpty){widget.task.title=title.text.trim();widget.task.note=note.text.trim();widget.task.bucket=bucket;widget.task.deadline=deadline;widget.task.tags=_parseTags(tags.text);s.updateTask(widget.task);}Navigator.pop(c);},child:const Text('保存'))]);}}
