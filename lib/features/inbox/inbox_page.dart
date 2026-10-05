@@ -8,6 +8,17 @@ import '../goals/goals_page.dart';
 class InboxPage extends StatelessWidget {
   const InboxPage({super.key});
 
+  Future<void> _editInbox(BuildContext context, AppState state, InboxItem item) async {
+    final controller = TextEditingController(text: item.text);
+    final value = await showDialog<String>(context: context, builder: (c) => AlertDialog(
+      title: const Text('Inboxを編集'),
+      content: TextField(controller: controller, autofocus: true, maxLines: 3, decoration: const InputDecoration(labelText: '内容')),
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('キャンセル')), FilledButton(onPressed: () => Navigator.pop(c, controller.text.trim()), child: const Text('保存'))],
+    ));
+    controller.dispose();
+    if (value != null && value.isNotEmpty) state.updateInbox(item, value);
+  }
+
   Future<void> _classify(BuildContext context, AppState state, InboxItem item, String type) async {
     final created = state.convertInbox(item, type);
     if (!context.mounted || created == null) return;
@@ -61,11 +72,15 @@ class InboxPage extends StatelessWidget {
                           onSelected: (value) {
                             if (value == 'delete') {
                               state.deleteInbox(item);
+                            } else if (value == 'edit') {
+                              _editInbox(context, state, item);
                             } else {
                               _classify(context, state, item, value);
                             }
                           },
                           itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'edit', child: Text('内容を編集')),
+                            PopupMenuDivider(),
                             PopupMenuItem(value: 'task', child: Text('やることに整理')),
                             PopupMenuItem(value: 'want', child: Text('買いたいに整理')),
                             PopupMenuItem(value: 'future', child: Text('予定候補に整理')),
