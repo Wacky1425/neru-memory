@@ -100,6 +100,9 @@ class CloudStore {
     final data=Map<String,dynamic>.from(raw);
     final id='${data['id']}';
     if(id.isEmpty)return;
+    // Restoring/recreating an item must clear its previous deletion marker,
+    // otherwise another device can immediately delete the restored item again.
+    await _deletions(uid).doc('${kind}_$id').delete();
     await _items(uid,kind).doc(id).set({
       ...data,
       'cloudUpdatedAt':FieldValue.serverTimestamp(),
