@@ -73,7 +73,7 @@ class AppState extends ChangeNotifier{
     try{await CloudStore.instance.deleteItem(uid,kind,itemId);cloudError=null;}catch(e){cloudError='$e';}
   }
   void _migrateLegacyTaskInbox(){final old=tasks.where((t)=>t.bucket==TaskBucket.inbox).toList();if(old.isEmpty)return;for(final t in old){inbox.add(InboxItem(id:id(),text:t.title,createdAt:DateTime.now()));tasks.remove(t);}_save();}
-  void _purgeTrash(){final cut=DateTime.now().subtract(const Duration(days:30));trash.removeWhere((x)=>x.deletedAt.isBefore(cut));}
+  void _purgeTrash(){final cut=DateTime.now().subtract(const Duration(days:30));final expired=trash.where((x)=>x.deletedAt.isBefore(cut)).toList();trash.removeWhere((x)=>x.deletedAt.isBefore(cut));for(final x in expired){_deleteCloud('trash',x.id);}if(expired.isNotEmpty)_save();}
   Future<void> connectCloud(String uid) async {
     if (_cloudUid == uid && cloudReady) return;
     _cloudUid = uid;
