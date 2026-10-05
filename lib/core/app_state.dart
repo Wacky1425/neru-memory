@@ -200,14 +200,14 @@ class AppState extends ChangeNotifier{
     inbox.remove(x);_deleteCloud('inbox',x.id);_changed();
     return created;
   }
-  void restoreTrash(TrashEntry x){
+  bool restoreTrash(TrashEntry x){
     try{
       if(x.type=='task'){final v=MemoryTask.fromJson(x.data);tasks.insert(0,v);_saveCloudItem('tasks',v.toJson());if(!kIsWeb)NotificationService.instance.syncTask(v);}
       if(x.type=='want'){final v=WantItem.fromJson(x.data);wants.insert(0,v);_saveCloudItem('wants',v.toJson());}
       if(x.type=='future'){final v=FutureItem.fromJson(x.data);futures.insert(0,v);_saveCloudItem('futures',v.toJson());if(!kIsWeb)NotificationService.instance.syncFuture(v);}
       if(x.type=='goal'){final v=GoalItem.fromJson(x.data);goals.insert(0,v);_saveCloudItem('goals',v.toJson());final raw=x.data['_milestones'];if(raw is List){for(final item in raw){try{final m=MilestoneItem.fromJson(Map<String,dynamic>.from(item));if(!milestones.any((existing)=>existing.id==m.id)){milestones.add(m);_saveCloudItem('milestones',m.toJson());}}catch(_){}}}_syncGoalFromMilestones(v.id);final linked=x.data['_linkedTaskIds'];if(linked is List){final ids=linked.map((e)=>'$e').toSet();for(final t in tasks.where((t)=>ids.contains(t.id))){if(t.goalId==null){t.goalId=v.id;t.updatedAt=DateTime.now();_saveCloudItem('tasks',t.toJson());}}}}
-      trash.remove(x);_deleteCloud('trash',x.id);_changed();
-    }catch(_){}
+      trash.remove(x);_deleteCloud('trash',x.id);_changed();return true;
+    }catch(_){return false;}
   }
   void deleteTrashForever(TrashEntry x){trash.remove(x);_deleteCloud('trash',x.id);_changed();}
 
