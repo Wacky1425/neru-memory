@@ -182,6 +182,7 @@ class _FutureDialogState extends State<_FutureDialog> {
       ),
     );
     if (choice == 'local') {
+      widget.item.googleEventId = null;
       state.deleteFuture(widget.item);
       if (mounted) Navigator.pop(context);
     } else if (choice == 'both') {
