@@ -61,8 +61,8 @@ class _HomePageState extends State<HomePage>{
       for(final f in todayFuture)Card(child:ListTile(onTap:()=>editFuture(context,f),leading:const Icon(Icons.push_pin_outlined),title:Text(f.title),subtitle:Text(formatMemoryDateTime(f.scheduledAt)))),
       const SectionTitle('NEXT'),
       for(final e in upcomingGoogle.take(3))ListTile(leading:const Icon(Icons.event_outlined),title:Text(e.title),subtitle:Text('${e.start.month}/${e.start.day} ${_time(e.start)} · Google')),
-      for(final t in upcomingTasks.take(3))ListTile(leading:const Icon(Icons.task_alt),title:Text(t.title),subtitle:Text('期限 ${formatMemoryDateTime(t.deadline)}')),
-      for(final f in upcomingFuture.take(3))ListTile(leading:const Icon(Icons.push_pin_outlined),title:Text(f.title),subtitle:Text(formatMemoryDateTime(f.scheduledAt))),
+      for(final t in upcomingTasks.take(3))ListTile(onTap:()=>editTask(context,t),leading:const Icon(Icons.task_alt),title:Text(t.title),subtitle:Text('期限 ${formatMemoryDateTime(t.deadline)}'),trailing:const Icon(Icons.chevron_right)),
+      for(final f in upcomingFuture.take(3))ListTile(onTap:()=>editFuture(context,f),leading:const Icon(Icons.push_pin_outlined),title:Text(f.title),subtitle:Text(formatMemoryDateTime(f.scheduledAt)),trailing:const Icon(Icons.chevron_right)),
       const SectionTitle('GOALS'),for(final g in goals)Card(child:InkWell(borderRadius:BorderRadius.circular(12),onTap:()=>openGoalDetail(context,g),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text(g.title,style:const TextStyle(fontWeight:FontWeight.bold))),Text('${(g.progress*100).round()}%')]),const SizedBox(height:8),LinearProgressIndicator(value:g.progress.clamp(0.0,1.0)),if(g.nextAction.isNotEmpty)...[const SizedBox(height:8),Row(children:[Expanded(child:Text(g.nextAction)),IconButton(tooltip:'Task化',onPressed:(){final before=s.tasks.length;s.addTaskFromGoal(g);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.tasks.length>before?'次の行動を「やること」に追加しました':'同じ「やること」が既にあります')));},icon:const Icon(Icons.add_task))])]])))),
       const SectionTitle('REMEMBER'),
       if(remember==null)
@@ -131,7 +131,7 @@ class MemorySearch extends SearchDelegate<String>{
     if(show('want')) rows.addAll(s.wants.where((x)=>has('${x.title} ${x.note} ${x.timing} ${x.waitingFor} ${x.tags.join(' ')}')).map((x)=>_MemorySearchRow('買いたい',x.title,Icons.shopping_bag_outlined,()=>editWant(context,x),x.status.name)));
     if(show('future')) rows.addAll(s.futures.where((x)=>has('${x.title} ${x.note} ${x.timing} ${x.tags.join(' ')}')).map((x)=>_MemorySearchRow('予定',x.title,Icons.push_pin_outlined,()=>editFuture(context,x),x.status.name)));
     if(show('goal')) rows.addAll(s.goals.where((x)=>has('${x.title} ${x.why} ${x.nextAction} ${x.tags.join(' ')}')).map((x)=>_MemorySearchRow('目標',x.title,Icons.flag_outlined,()=>openGoalDetail(context,x),x.status.name)));
-    if(show('inbox')) rows.addAll(s.inbox.where((x)=>has(x.text)).map((x)=>_MemorySearchRow('未分類',x.text,Icons.inbox_outlined,null,'')));
+    if(show('inbox')) rows.addAll(s.inbox.where((x)=>has(x.text)).map((x)=>_MemorySearchRow('未分類',x.text,Icons.inbox_outlined,()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const InboxPage())),'')));
 
     if(q.isEmpty&&filter=='all')return const Center(child:Text('キーワード検索、または右上から種類を絞り込み'));
     if(rows.isEmpty)return const Center(child:Text('見つかりませんでした'));
