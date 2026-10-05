@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import '../tags/tag_results_page.dart';import '../tags/tags_page.dart';import '../goals/goals_page.dart';import 'editors.dart';
+import 'package:flutter/material.dart';import '../../core/app_state.dart';import '../../core/models.dart';import '../../widgets/common.dart';import '../inbox/inbox_page.dart';import '../tags/tag_results_page.dart';import '../tags/tags_page.dart';import 'editors.dart';
 
 Widget _taggedSubtitle(BuildContext context,List<String> lines,List<String> tags){
   final text=lines.where((e)=>e.trim().isNotEmpty).join(' · ');
