@@ -189,7 +189,7 @@ class AppState extends ChangeNotifier{
       if(g.id==gid){g.progress=value.clamp(0.0,1.0);g.updatedAt=DateTime.now();break;}
     }
   }
-  void addInbox(String x){final v=InboxItem(id:id(),text:x,createdAt:DateTime.now());inbox.insert(0,v);_changed();_saveCloudItem('inbox',v.toJson());}void deleteInbox(InboxItem x){inbox.remove(x);_deleteCloud('inbox',x.id);_changed();}
+  void addInbox(String x){final v=InboxItem(id:id(),text:x,createdAt:DateTime.now());inbox.insert(0,v);_changed();_saveCloudItem('inbox',v.toJson());}void updateInbox(InboxItem x,String text){final value=text.trim();if(value.isEmpty)return;x.text=value;x.updatedAt=DateTime.now();_changed();_saveCloudItem('inbox',x.toJson());}void deleteInbox(InboxItem x){inbox.remove(x);_deleteCloud('inbox',x.id);_changed();}
   Object? convertInbox(InboxItem x,String type){
     Object? created;
     if(type=='task'){final v=MemoryTask(id:id(),title:x.text,bucket:TaskBucket.soon);tasks.insert(0,v);_saveCloudItem('tasks',v.toJson());created=v;}
