@@ -197,7 +197,7 @@ class _CalendarPageState extends State<CalendarPage> {
         for(final e in dayEvents) Card(child:ListTile(
           leading:const Icon(Icons.event),title:Text(e.title),
           subtitle:Text(e.allDay?'終日 · Google Calendar':'${hm(e.start)}–${hm(e.end)} · Google Calendar'),
-          trailing:const Icon(Icons.edit_outlined),onTap:()async{await editGoogle(context,e);if(mounted)setState((){});}))),
+          trailing:const Icon(Icons.edit_outlined),onTap:()async{await editGoogle(context,e);if(mounted)setState((){});})) ,
       ])));
   }
 }
