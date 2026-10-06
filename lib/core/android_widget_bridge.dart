@@ -10,9 +10,11 @@ class AndroidWidgetBridge {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'quickCapture') {
         final text = (call.arguments as String?)?.trim() ?? '';
-        if (text.isNotEmpty) {
-          state.addInbox(text);
-        }
+        if (text.isNotEmpty) state.addInbox(text);
+      } else if (call.method == 'completeTask') {
+        final id = (call.arguments as String?)?.trim() ?? '';
+        final task = state.tasks.where((item) => item.id == id).firstOrNull;
+        if (task != null && !task.completed) state.toggleTask(task);
       }
     });
     await sync(state);
@@ -40,16 +42,18 @@ class AndroidWidgetBridge {
       return task.bucket.name == 'today' || deadlineToday;
     }).toList();
 
-    final lines = <String>[
-      ...overdue.map((task) => '⚠ ${task.title}'),
-      ...today
-          .where((task) => !overdue.any((item) => item.id == task.id))
-          .map((task) => '• ${task.title}'),
+    final visible = <dynamic>[
+      ...overdue,
+      ...today.where((task) => !overdue.any((item) => item.id == task.id)),
     ].take(6).toList();
+    final lines = visible.map((task) =>
+      '${overdue.any((item) => item.id == task.id) ? '⚠' : '•'} ${task.title}'
+    ).toList();
 
     try {
       await _channel.invokeMethod('updateToday', <String, dynamic>{
         'items': lines,
+        'taskIds': visible.map((task) => task.id as String).toList(),
         'overdueCount': overdue.length,
         'todayCount': today.length,
       });
