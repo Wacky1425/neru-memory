@@ -43,8 +43,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
             val overdue = prefs.getInt("overdue_count", 0)
             val today = prefs.getInt("today_count", 0)
 
-            val body =
-                if (raw.isBlank()) "今日のTaskはありません" else raw
+            val taskLines = raw.split("\n").filter { it.isNotBlank() }
 
             // ${overdue}件 のように境界を明示し、日本語が変数名として
             // 解釈されないようにする。
@@ -61,20 +60,34 @@ class TodayWidgetProvider : AppWidgetProvider() {
                     R.layout.widget_today
                 )
                 views.setTextViewText(R.id.widget_summary, summary)
-                views.setTextViewText(R.id.widget_items, body)
 
-                val firstTaskId = taskIds.firstOrNull()
-                if (firstTaskId != null) {
-                    val complete = Intent(context, MainActivity::class.java).apply {
-                        action = "com.example.neru_memory.COMPLETE_TASK"
-                        putExtra("taskId", firstTaskId)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                val rowIds = intArrayOf(
+                    R.id.widget_task_0, R.id.widget_task_1, R.id.widget_task_2,
+                    R.id.widget_task_3, R.id.widget_task_4, R.id.widget_task_5
+                )
+                rowIds.forEachIndexed { index, rowId ->
+                    val title = taskLines.getOrNull(index)
+                    val taskId = taskIds.getOrNull(index)
+                    if (title != null && taskId != null) {
+                        views.setViewVisibility(rowId, android.view.View.VISIBLE)
+                        views.setTextViewText(rowId, "☐ $title")
+                        val complete = Intent(context, MainActivity::class.java).apply {
+                            action = "com.example.neru_memory.COMPLETE_TASK"
+                            putExtra("taskId", taskId)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
+                        val completePi = PendingIntent.getActivity(
+                            context, 300 + index, complete,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        views.setOnClickPendingIntent(rowId, completePi)
+                    } else {
+                        views.setViewVisibility(rowId, android.view.View.GONE)
                     }
-                    val completePi = PendingIntent.getActivity(
-                        context, 203, complete,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(R.id.widget_complete, completePi)
+                }
+                if (taskLines.isEmpty()) {
+                    views.setViewVisibility(R.id.widget_task_0, android.view.View.VISIBLE)
+                    views.setTextViewText(R.id.widget_task_0, "今日のTaskはありません")
                 }
 
                 val open = Intent(context, MainActivity::class.java)
