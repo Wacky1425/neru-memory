@@ -38,6 +38,8 @@ class TodayWidgetProvider : AppWidgetProvider() {
                 Context.MODE_PRIVATE
             )
             val raw = prefs.getString("today_items", "").orEmpty()
+            val taskIds = prefs.getString("today_task_ids", "").orEmpty()
+                .split("\n").filter { it.isNotBlank() }
             val overdue = prefs.getInt("overdue_count", 0)
             val today = prefs.getInt("today_count", 0)
 
@@ -60,6 +62,20 @@ class TodayWidgetProvider : AppWidgetProvider() {
                 )
                 views.setTextViewText(R.id.widget_summary, summary)
                 views.setTextViewText(R.id.widget_items, body)
+
+                val firstTaskId = taskIds.firstOrNull()
+                if (firstTaskId != null) {
+                    val complete = Intent(context, MainActivity::class.java).apply {
+                        action = "com.example.neru_memory.COMPLETE_TASK"
+                        putExtra("taskId", firstTaskId)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                    val completePi = PendingIntent.getActivity(
+                        context, 203, complete,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    views.setOnClickPendingIntent(R.id.widget_complete, completePi)
+                }
 
                 val open = Intent(context, MainActivity::class.java)
                 val openPi = PendingIntent.getActivity(
