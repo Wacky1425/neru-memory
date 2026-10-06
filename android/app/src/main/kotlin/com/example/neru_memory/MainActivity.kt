@@ -27,9 +27,13 @@ class MainActivity:FlutterActivity(){
         "updateToday"->{
           val args=call.arguments as? Map<*,*>?:emptyMap<Any,Any>()
           val items=args["items"] as? List<*>?:emptyList<Any>()
+          val taskIds=args["taskIds"] as? List<*>?:emptyList<Any>()
           val overdueCount=(args["overdueCount"] as? Number)?.toInt()?:0
           val todayCount=(args["todayCount"] as? Number)?.toInt()?:0
-          getSharedPreferences("neru_widget",MODE_PRIVATE).edit().putString("today_items",items.filterIsInstance<String>().joinToString("\n")).putInt("overdue_count",overdueCount).putInt("today_count",todayCount).apply()
+          getSharedPreferences("neru_widget",MODE_PRIVATE).edit()
+            .putString("today_items",items.filterIsInstance<String>().joinToString("\n"))
+            .putString("today_task_ids",taskIds.filterIsInstance<String>().joinToString("\n"))
+            .putInt("overdue_count",overdueCount).putInt("today_count",todayCount).apply()
           updateTodayWidgets();result.success(null)
         }
         else->result.notImplemented()
@@ -47,8 +51,15 @@ class MainActivity:FlutterActivity(){
       }
     }
   }
-  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);maybeOpenQuickCapture(intent)}
-  override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);maybeOpenQuickCapture(intent)}
+  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);handleWidgetIntent(intent)}
+  override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);handleWidgetIntent(intent)}
+  private fun handleWidgetIntent(intent:Intent?){
+    maybeOpenQuickCapture(intent)
+    if(intent?.action=="com.example.neru_memory.COMPLETE_TASK"){
+      val id=intent.getStringExtra("taskId").orEmpty()
+      if(id.isNotBlank())window.decorView.postDelayed({widgetChannel?.invokeMethod("completeTask",id)},350)
+    }
+  }
   private fun maybeOpenQuickCapture(intent:Intent?){
     if(intent?.action!="com.example.neru_memory.QUICK_CAPTURE")return
     window.decorView.postDelayed({
