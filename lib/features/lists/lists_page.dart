@@ -57,5 +57,34 @@ for(final b in[TaskBucket.today,TaskBucket.soon,TaskBucket.someday])...[SectionT
 ListTile(contentPadding:EdgeInsets.zero,title:Text('完了済み ${s.tasks.where((t)=>t.completed).length}件'),trailing:Icon(showCompleted?Icons.expand_less:Icons.expand_more),onTap:()=>setState(()=>showCompleted=!showCompleted)),
 if(showCompleted)...s.tasks.where((t)=>t.completed).map((t)=>ListTile(title:Text(t.title,style:const TextStyle(decoration:TextDecoration.lineThrough)),leading:IconButton(icon:const Icon(Icons.check_circle),onPressed:()=>s.toggleTask(t)),trailing:IconButton(icon:const Icon(Icons.edit_outlined),onPressed:()=>editTask(c,t))))
 ]);}}
-class _Wants extends StatelessWidget{const _Wants();@override Widget build(BuildContext c){final s=AppStateScope.of(c);return ListView(padding:const EdgeInsets.fromLTRB(16,12,16,100),children:[for(final w in s.wants)Card(child:ListTile(onTap:()=>editWant(c,w),leading:const Icon(Icons.shopping_bag_outlined),title:Text(w.title),subtitle:_taggedSubtitle(c,[if(w.budget!=null)'¥${w.budget!.round()}',w.timing,w.waitingFor],w.tags),trailing:const Icon(Icons.chevron_right))) ]);}}
+class _Wants extends StatefulWidget{const _Wants();@override State<_Wants> createState()=>_WantsState();}
+class _WantsState extends State<_Wants>{
+  bool showHistory=false;
+  String _status(WantStatus s)=>switch(s){
+    WantStatus.interested=>'欲しい',
+    WantStatus.considering=>'検討中',
+    WantStatus.planned=>'購入予定',
+    WantStatus.purchased=>'購入済み',
+    WantStatus.dropped=>'見送り',
+  };
+  @override Widget build(BuildContext c){
+    final s=AppStateScope.of(c);
+    final active=s.wants.where((w)=>w.status!=WantStatus.purchased&&w.status!=WantStatus.dropped).toList();
+    final history=s.wants.where((w)=>w.status==WantStatus.purchased||w.status==WantStatus.dropped).toList();
+    Widget tile(WantItem w)=>Card(child:ListTile(
+      onTap:()=>editWant(c,w),
+      leading:Icon(w.status==WantStatus.purchased?Icons.check_circle_outline:Icons.shopping_bag_outlined),
+      title:Text(w.title),
+      subtitle:_taggedSubtitle(c,[_status(w.status),if(w.budget!=null)'¥${w.budget!.round()}',w.timing,w.waitingFor],w.tags),
+      trailing:const Icon(Icons.chevron_right),
+    ));
+    return ListView(padding:const EdgeInsets.fromLTRB(16,12,16,100),children:[
+      ...active.map(tile),
+      ListTile(title:Text('購入履歴・見送り ${history.length}件'),
+        trailing:Icon(showHistory?Icons.expand_less:Icons.expand_more),
+        onTap:()=>setState(()=>showHistory=!showHistory)),
+      if(showHistory)...history.map(tile),
+    ]);
+  }
+}
 class _Futures extends StatelessWidget{const _Futures();@override Widget build(BuildContext c){final s=AppStateScope.of(c);return ListView(padding:const EdgeInsets.fromLTRB(16,12,16,100),children:[for(final f in s.futures)Card(child:ListTile(onTap:()=>editFuture(c,f),leading:const Icon(Icons.push_pin_outlined),title:Text(f.title),subtitle:_taggedSubtitle(c,[f.status.name,f.timing],f.tags),trailing:f.googleEventId==null?null:const Icon(Icons.event_available_outlined))) ]);}}
