@@ -20,15 +20,19 @@ class RememberSuggestion {
 class AppState extends ChangeNotifier{
   AppState._(); ThemeMode themeMode=ThemeMode.light;
   final tasks=<MemoryTask>[],wants=<WantItem>[],futures=<FutureItem>[],goals=<GoalItem>[],milestones=<MilestoneItem>[],inbox=<InboxItem>[];
+  final rememberEntries=<SimpleEntry>[],weeklyEntries=<SimpleEntry>[],accountIndex=<SimpleEntry>[];
   final trash=<TrashEntry>[]; final rememberMeta=<String,DateTime>{}; SharedPreferences? _prefs; int _counter=100; String? _cloudUid; StreamSubscription<void>? _cloudSub; bool cloudReady=false,cloudBusy=false;String? cloudError;
   static Future<AppState> load()async{final s=AppState._();s._prefs=await SharedPreferences.getInstance();final raw=s._prefs!.getString('neru_memory_state');if(raw==null){await s._save();}else{try{s._restore(jsonDecode(raw));}catch(_){await s._save();}}s._migrateLegacyTaskInbox();s._purgeTrash();return s;}
   String id()=>'${DateTime.now().microsecondsSinceEpoch}_${_counter++}';
   void _seed(){tasks.addAll([MemoryTask(id:'t1',title:'Shortsを編集する',bucket:TaskBucket.today,goalId:'g2'),MemoryTask(id:'t2',title:'美容院を予約する',bucket:TaskBucket.today),MemoryTask(id:'t3',title:'DDR5価格を確認する',bucket:TaskBucket.soon)]);wants.add(WantItem(id:'w1',title:'PC更新',status:WantStatus.considering,budget:150000,waitingFor:'DDR5価格が落ち着いたら'));futures.addAll([FutureItem(id:'f1',title:'実家へ帰る',status:FutureStatus.planned,timing:'11月'),FutureItem(id:'f2',title:'温泉旅行',timing:'冬')]);goals.addAll([GoalItem(id:'g1',title:'バイクで日本一周',progress:.38,deadline:'2030年10月',why:'自分のバイクで日本を回り、写真として残す',nextAction:'バイク候補を3台まで絞る'),GoalItem(id:'g2',title:'YouTubeを成長させる',progress:.22,deadline:'継続',nextAction:'Shortsを1本編集する')]);}
   void _restore(Map<String,dynamic>j){themeMode=ThemeMode.values.byName(j['themeMode']??'light');tasks.addAll((j['tasks']as List? ??[]).map((e)=>MemoryTask.fromJson(Map<String,dynamic>.from(e))));wants.addAll((j['wants']as List? ??[]).map((e)=>WantItem.fromJson(Map<String,dynamic>.from(e))));futures.addAll((j['futures']as List? ??[]).map((e)=>FutureItem.fromJson(Map<String,dynamic>.from(e))));goals.addAll((j['goals']as List? ??[]).map((e)=>GoalItem.fromJson(Map<String,dynamic>.from(e))));milestones.addAll((j['milestones']as List? ??[]).map((e)=>MilestoneItem.fromJson(Map<String,dynamic>.from(e))));inbox.addAll((j['inbox']as List? ??[]).map((e)=>InboxItem.fromJson(Map<String,dynamic>.from(e))));trash.addAll((j['trash']as List? ??[]).map((e)=>TrashEntry.fromJson(Map<String,dynamic>.from(e))));
+    rememberEntries.addAll((j['rememberEntries'] as List? ??[]).map((e)=>SimpleEntry.fromJson(Map<String,dynamic>.from(e))));
+    weeklyEntries.addAll((j['weeklyEntries'] as List? ??[]).map((e)=>SimpleEntry.fromJson(Map<String,dynamic>.from(e))));
+    accountIndex.addAll((j['accountIndex'] as List? ??[]).map((e)=>SimpleEntry.fromJson(Map<String,dynamic>.from(e))));
     final rm=Map<String,dynamic>.from(j['rememberMeta']??const {});
     for(final e in rm.entries){final d=DateTime.tryParse('${e.value}');if(d!=null)rememberMeta[e.key]=d;}
   }
-  Map<String,dynamic> _snapshot()=>{'themeMode':themeMode.name,'tasks':tasks.map((e)=>e.toJson()).toList(),'wants':wants.map((e)=>e.toJson()).toList(),'futures':futures.map((e)=>e.toJson()).toList(),'goals':goals.map((e)=>e.toJson()).toList(),'milestones':milestones.map((e)=>e.toJson()).toList(),'inbox':inbox.map((e)=>e.toJson()).toList(),'trash':trash.map((e)=>e.toJson()).toList(),'rememberMeta':rememberMeta.map((k,v)=>MapEntry(k,v.toIso8601String())),'updatedAt':DateTime.now().toUtc().toIso8601String()};
+  Map<String,dynamic> _snapshot()=>{'themeMode':themeMode.name,'tasks':tasks.map((e)=>e.toJson()).toList(),'wants':wants.map((e)=>e.toJson()).toList(),'futures':futures.map((e)=>e.toJson()).toList(),'goals':goals.map((e)=>e.toJson()).toList(),'milestones':milestones.map((e)=>e.toJson()).toList(),'inbox':inbox.map((e)=>e.toJson()).toList(),'trash':trash.map((e)=>e.toJson()).toList(),'rememberEntries':rememberEntries.map((e)=>e.toJson()).toList(),'weeklyEntries':weeklyEntries.map((e)=>e.toJson()).toList(),'accountIndex':accountIndex.map((e)=>e.toJson()).toList(),'rememberMeta':rememberMeta.map((k,v)=>MapEntry(k,v.toIso8601String())),'updatedAt':DateTime.now().toUtc().toIso8601String()};
   String exportJson()=>const JsonEncoder.withIndent('  ').convert(_snapshot());
   Future<String?> importJson(String raw) async {
     try {
@@ -44,6 +48,9 @@ class AppState extends ChangeNotifier{
       milestones..clear()..addAll(next.milestones);
       inbox..clear()..addAll(next.inbox);
       trash..clear()..addAll(next.trash);
+      rememberEntries..clear()..addAll(next.rememberEntries);
+      weeklyEntries..clear()..addAll(next.weeklyEntries);
+      accountIndex..clear()..addAll(next.accountIndex);
       rememberMeta..clear()..addAll(next.rememberMeta);
       themeMode=next.themeMode;
       await _save();
@@ -136,6 +143,9 @@ class AppState extends ChangeNotifier{
     milestones.removeWhere((x)=>deleted['milestones']?.contains(x.id)??false);
     inbox.removeWhere((x)=>deleted['inbox']?.contains(x.id)??false);
     trash.removeWhere((x)=>deleted['trash']?.contains(x.id)??false);
+    rememberEntries.removeWhere((x)=>deleted['rememberEntries']?.contains(x.id)??false);
+    weeklyEntries.removeWhere((x)=>deleted['weeklyEntries']?.contains(x.id)??false);
+    accountIndex.removeWhere((x)=>deleted['accountIndex']?.contains(x.id)??false);
     for(final kind in CloudStore.kinds){
       final ids=deleted[kind];
       if(ids!=null){(r[kind] as List? ?? const []).removeWhere((raw)=>ids.contains('${(raw as Map)['id']}'));}
@@ -152,6 +162,11 @@ class AppState extends ChangeNotifier{
         (x)=>x.updatedAt, MilestoneItem.fromJson); milestones..clear()..addAll(mm);
     final mi = _mergeById(inbox, r['inbox'] as List? ?? const [], (x)=>x.id,
         (x)=>x.updatedAt, InboxItem.fromJson); inbox..clear()..addAll(mi);
+    for(final kind in ['rememberEntries','weeklyEntries','accountIndex']) {
+      final local=entriesFor(kind);
+      final merged=_mergeById(local,r[kind] as List? ??const [],(SimpleEntry x)=>x.id,(SimpleEntry x)=>x.updatedAt,SimpleEntry.fromJson);
+      local..clear()..addAll(merged);
+    }
     // Trash is append-only until purge/explicit permanent deletion.
     final trashMap = {for(final x in trash) x.id:x};
     for(final raw in (r['trash'] as List? ?? const [])) {
@@ -160,6 +175,21 @@ class AppState extends ChangeNotifier{
     trash..clear()..addAll(trashMap.values);
     final rm=Map<String,dynamic>.from(r['rememberMeta']??const {});
     for(final e in rm.entries){final d=DateTime.tryParse('${e.value}');if(d!=null)rememberMeta[e.key]=d;}
+  }
+  List<SimpleEntry> entriesFor(String kind)=>switch(kind){
+    'rememberEntries'=>rememberEntries,'weeklyEntries'=>weeklyEntries,'accountIndex'=>accountIndex,
+    _=>throw ArgumentError('Unknown collection'),
+  };
+  void saveEntry(String kind,SimpleEntry entry){
+    entry.updatedAt=DateTime.now();
+    final items=entriesFor(kind);
+    final i=items.indexWhere((x)=>x.id==entry.id);
+    if(i<0){items.add(entry);}else{items[i]=entry;}
+    _changed();_saveCloudItem(kind,entry.toJson());
+  }
+  void removeEntry(String kind,SimpleEntry entry){
+    entriesFor(kind).removeWhere((x)=>x.id==entry.id);
+    _changed();_deleteCloud(kind,entry.id);
   }
   void disconnectCloud(){_cloudSub?.cancel();_cloudSub=null;_cloudUid=null;cloudReady=false;notifyListeners();}void setTheme(ThemeMode m){themeMode=m;notifyListeners();_prefs?.setString('neru_memory_state',jsonEncode(_snapshot()));_saveCloudSettings();}
   void toggleTask(MemoryTask t){t.completed=!t.completed;t.updatedAt=DateTime.now();_changed();_saveCloudItem('tasks',t.toJson());if(!kIsWeb)NotificationService.instance.syncTask(t);}
