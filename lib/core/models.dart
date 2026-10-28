@@ -39,3 +39,10 @@ class InboxItem {
   Map<String,dynamic> toJson()=>{'id':id,'text':text,'createdAt':createdAt.toIso8601String(),'updatedAt':updatedAt.toIso8601String()};
   factory InboxItem.fromJson(Map<String,dynamic> j)=>InboxItem(id:j['id'],text:j['text'],createdAt:DateTime.parse(j['createdAt']),updatedAt:j['updatedAt']==null?null:DateTime.tryParse(j['updatedAt']));
 }
+
+class SimpleEntry {
+  SimpleEntry({required this.id,required this.title,this.category='',this.note='',this.week='',this.day=0,this.time='',DateTime? updatedAt}):updatedAt=updatedAt??DateTime.now();
+  final String id; String title,category,note,week,time; int day; DateTime updatedAt;
+  Map<String,dynamic> toJson()=>{'id':id,'title':title,'category':category,'note':note,'week':week,'day':day,'time':time,'updatedAt':updatedAt.toIso8601String()};
+  factory SimpleEntry.fromJson(Map<String,dynamic> j)=>SimpleEntry(id:'${j['id']}',title:'${j['title']??''}',category:'${j['category']??''}',note:'${j['note']??''}',week:'${j['week']??''}',day:(j['day'] as num?)?.toInt()??0,time:'${j['time']??''}',updatedAt:DateTime.tryParse('${j['updatedAt']}')??DateTime(2000));
+}
