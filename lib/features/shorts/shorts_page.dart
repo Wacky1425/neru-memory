@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -38,52 +39,111 @@ class ClipLinks {
 }
 
 String formatClipTime(String raw) {
- final digits=raw.trim();
- if(digits.contains(':'))return digits;
- if(!RegExp(r'^\\d{1,6}$').hasMatch(digits))return digits;
- if(digits.length<=2)return '0:' + digits.padLeft(2,'0');
- if(digits.length<=4)return digits.substring(0,digits.length-2) + ':' + digits.substring(digits.length-2);
- return digits.substring(0,digits.length-4) + ':' + digits.substring(digits.length-4,digits.length-2) + ':' + digits.substring(digits.length-2);
+  final digits = raw.trim();
+  if (digits.contains(':')) return digits;
+  if (!RegExp(r'^\d{1,6}$').hasMatch(digits)) return digits;
+  if (digits.length <= 2) return '0:' + digits.padLeft(2, '0');
+  if (digits.length <= 4) return digits.substring(0, digits.length - 2) + ':' + digits.substring(digits.length - 2);
+  return digits.substring(0, digits.length - 4) + ':' + digits.substring(digits.length - 4, digits.length - 2) + ':' + digits.substring(digits.length - 2);
+}
+class ClipSegmentData {
+  final String start, end, heading;
+  const ClipSegmentData(this.start, this.end, this.heading);
+  static ClipSegmentData parse(String raw) {
+    if (raw.startsWith('{')) {
+      try {
+        final data = jsonDecode(raw) as Map<String, dynamic>;
+        if (data['start'] is String && data['end'] is String) {
+          return ClipSegmentData(data['start'] as String, data['end'] as String, (data['heading'] ?? '').toString());
+        }
+      } catch (_) {}
+    }
+    final parts = raw.split(RegExp(r'\s+-\s+'));
+    if (parts.length == 2) return ClipSegmentData(formatClipTime(parts[0]), formatClipTime(parts[1]), '');
+    return ClipSegmentData(formatClipTime(raw), '', '');
+  }
+  String encode() => jsonEncode({'start': start, 'end': end, 'heading': heading});
+  String get range => end.isEmpty ? start : start + '〜' + end;
 }
 class ClipTimeEditor extends StatefulWidget {
   final List<String> initial;
   final ValueChanged<List<String>> onChanged;
-  const ClipTimeEditor({super.key,required this.initial,required this.onChanged});
-  @override State<ClipTimeEditor> createState()=>_ClipTimeEditorState();
+  const ClipTimeEditor({super.key, required this.initial, required this.onChanged});
+  @override State<ClipTimeEditor> createState() => _ClipTimeEditorState();
 }
 class _ClipTimeEditorState extends State<ClipTimeEditor> {
-  late final List<String> items=List.of(widget.initial);
-  final start=TextEditingController(),end=TextEditingController();
-  final endFocus=FocusNode();
-  @override void dispose(){start.dispose();end.dispose();endFocus.dispose();super.dispose();}
-  void add(){
-    final a=formatClipTime(start.text),b=formatClipTime(end.text);
-    final x=ClipLinks.seconds(a),y=ClipLinks.seconds(b);
-    if(x==null||y==null||y<=x){
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('開始・終了時間を確認してください')));
+  late final List<String> items = List.of(widget.initial);
+  final heading = TextEditingController();
+  final fields = List.generate(6, (_) => TextEditingController());
+  @override void dispose() {
+    heading.dispose();
+    for (final field in fields) { field.dispose(); }
+    super.dispose();
+  }
+  String? timestamp(int offset) {
+    final raw = fields.sublist(offset, offset + 3).map((x) => x.text.trim()).toList();
+    if (raw.every((x) => x.isEmpty)) return null;
+    final h = int.tryParse(raw[0].isEmpty ? '0' : raw[0]);
+    final m = int.tryParse(raw[1].isEmpty ? '0' : raw[1]);
+    final s = int.tryParse(raw[2].isEmpty ? '0' : raw[2]);
+    if (h == null || m == null || s == null || h < 0 || m < 0 || m > 59 || s < 0 || s > 59) return null;
+    return h.toString() + ':' + m.toString().padLeft(2, '0') + ':' + s.toString().padLeft(2, '0');
+  }
+  void add() {
+    final a = timestamp(0), b = timestamp(3);
+    final x = a == null ? null : ClipLinks.seconds(a);
+    final y = b == null ? null : ClipLinks.seconds(b);
+    if (x == null || y == null || y <= x) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('開始・終了時間を確認してください（分・秒は0〜59）')));
       return;
     }
-    setState(()=>items.add(a + ' - ' + b));
+    setState(() => items.add(ClipSegmentData(a, b, heading.text.trim()).encode()));
     widget.onChanged(List.of(items));
-    start.clear();end.clear();
+    heading.clear();
+    for (final field in fields) { field.clear(); }
   }
-  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    const Text('切り抜き時間',style:TextStyle(fontWeight:FontWeight.w600)),
-    const SizedBox(height:8),
-    Row(children:[
-      Expanded(child:TextField(controller:start,keyboardType:TextInputType.number,inputFormatters:[FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(6)],textInputAction:TextInputAction.next,onSubmitted:(_)=>endFocus.requestFocus(),decoration:const InputDecoration(labelText:'開始',hintText:'123456',isDense:true,border:OutlineInputBorder()))),
-      const Padding(padding:EdgeInsets.symmetric(horizontal:6),child:Text('〜')),
-      Expanded(child:TextField(controller:end,focusNode:endFocus,keyboardType:TextInputType.number,inputFormatters:[FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(6)],textInputAction:TextInputAction.done,onSubmitted:(_)=>add(),decoration:const InputDecoration(labelText:'終了',hintText:'124530',isDense:true,border:OutlineInputBorder()))),
-      IconButton(onPressed:add,tooltip:'区間を追加',icon:const Icon(Icons.add_circle_outline)),
+  Widget timeFields(String label, int offset) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: const TextStyle(fontSize: 12)),
+    const SizedBox(height: 4),
+    Row(children: [
+      for (var i = 0; i < 3; i++) ...[
+        Expanded(child: TextField(
+          controller: fields[offset + i],
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(i == 0 ? 3 : 2)],
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(hintText: '00', labelText: ['時', '分', '秒'][i], isDense: true, border: const OutlineInputBorder()),
+        )),
+        if (i < 2) const SizedBox(width: 4),
+      ],
     ]),
-    const SizedBox(height:4),
-    const Text('123456 → 1:23:45。開始・終了を数字だけ入力し、Enterで追加',style:TextStyle(fontSize:12)),
-    for(var i=0;i<items.length;i++)ListTile(dense:true,contentPadding:EdgeInsets.zero,title:Text(items[i]),trailing:IconButton(icon:const Icon(Icons.close),tooltip:'削除',onPressed:(){setState(()=>items.removeAt(i));widget.onChanged(List.of(items));})),
+  ]);
+  @override Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const Text('切り抜き時間', style: TextStyle(fontWeight: FontWeight.w600)),
+    const SizedBox(height: 8),
+    TextField(controller: heading, decoration: const InputDecoration(labelText: 'この区間の小見出し（任意）', hintText: '例：初神話達成', isDense: true, border: OutlineInputBorder())),
+    const SizedBox(height: 8),
+    Row(children: [
+      Expanded(child: timeFields('開始', 0)),
+      const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Text('〜')),
+      Expanded(child: timeFields('終了', 3)),
+    ]),
+    Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: add, icon: const Icon(Icons.add_circle_outline), label: const Text('この区間を追加'))),
+    for (var i = 0; i < items.length; i++)
+      Builder(builder: (context) {
+        final segment = ClipSegmentData.parse(items[i]);
+        return ListTile(
+          dense: true, contentPadding: EdgeInsets.zero,
+          title: Text(segment.heading.isEmpty ? segment.range : segment.heading),
+          subtitle: segment.heading.isEmpty ? null : Text(segment.range),
+          trailing: IconButton(icon: const Icon(Icons.close), tooltip: '削除', onPressed: () {
+            setState(() => items.removeAt(i));
+            widget.onChanged(List.of(items));
+          }),
+        );
+      }),
   ]);
 }
-
-
-
 
 class ShortsPage extends StatefulWidget {
   const ShortsPage({super.key});
@@ -159,7 +219,10 @@ class _ShortsPageState extends State<ShortsPage>{
           ]),
           Wrap(spacing:8,children:[Chip(label:Text(clip.status)),if(clip.game.isNotEmpty)Chip(label:Text(clip.game)),Chip(label:Text('優先度 ${clip.priority}'))]),
           for(final segment in clip.segments)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:TextButton.icon(
-            onPressed:()=>openAt(clip.url,startOf(segment)),icon:const Icon(Icons.play_circle_outline),label:Text(segment),
+            onPressed:()=>openAt(clip.url,ClipSegmentData.parse(segment).start),icon:const Icon(Icons.play_circle_outline),label:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              if(ClipSegmentData.parse(segment).heading.isNotEmpty)Text(ClipSegmentData.parse(segment).heading,style:const TextStyle(fontWeight:FontWeight.w600)),
+              Text(ClipSegmentData.parse(segment).range),
+            ]),
           )),
           if(clip.note.isNotEmpty)Padding(padding:const EdgeInsets.only(top:6),child:Text(clip.note,maxLines:3,overflow:TextOverflow.ellipsis)),
           if(clip.url.isNotEmpty)TextButton.icon(onPressed:()=>openAt(clip.url,'0:00'),icon:const Icon(Icons.open_in_new),label:const Text('配信元を開く')),
