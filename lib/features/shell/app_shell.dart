@@ -5,6 +5,7 @@ import '../goals/goals_page.dart';
 import '../calendar/calendar_page.dart';
 import '../settings/settings_page.dart';
 import '../capture/quick_capture.dart';
+import '../shorts/shorts_page.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -12,12 +13,13 @@ class AppShell extends StatefulWidget {
 }
 class _AppShellState extends State<AppShell> {
   int index=0;
-  final pages=const [HomePage(),ListsPage(),GoalsPage(),CalendarPage(),SettingsPage()];
+  final pages=const [HomePage(),ListsPage(),GoalsPage(),CalendarPage(),ShortsPage(),SettingsPage()];
   static const destinations=<NavigationRailDestination>[
     NavigationRailDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:Text('ホーム')),
     NavigationRailDestination(icon:Icon(Icons.checklist),label:Text('リスト')),
     NavigationRailDestination(icon:Icon(Icons.flag_outlined),label:Text('目標')),
     NavigationRailDestination(icon:Icon(Icons.calendar_month_outlined),label:Text('予定')),
+    NavigationRailDestination(icon:Icon(Icons.movie_creation_outlined),label:Text('Shorts')),
     NavigationRailDestination(icon:Icon(Icons.settings_outlined),label:Text('設定')),
   ];
   @override Widget build(BuildContext context)=>PopScope(
@@ -44,13 +46,14 @@ class _AppShellState extends State<AppShell> {
       }
       return Scaffold(
         body:content,
-        floatingActionButton:index==4?null:FloatingActionButton.small(onPressed:()=>showQuickCapture(context),child:const Icon(Icons.add)),
+        floatingActionButton:index==5?null:FloatingActionButton.small(onPressed:()=>showQuickCapture(context),child:const Icon(Icons.add)),
         floatingActionButtonLocation:FloatingActionButtonLocation.endFloat,
         bottomNavigationBar:NavigationBar(selectedIndex:index,onDestinationSelected:(v)=>setState(()=>index=v),destinations:const[
           NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'ホーム'),
           NavigationDestination(icon:Icon(Icons.checklist),label:'リスト'),
           NavigationDestination(icon:Icon(Icons.flag_outlined),label:'目標'),
           NavigationDestination(icon:Icon(Icons.calendar_month_outlined),label:'予定'),
+          NavigationDestination(icon:Icon(Icons.movie_creation_outlined),label:'Shorts'),
           NavigationDestination(icon:Icon(Icons.settings_outlined),label:'設定'),
         ]),
       );
