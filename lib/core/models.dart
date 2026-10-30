@@ -46,3 +46,11 @@ class SimpleEntry {
   Map<String,dynamic> toJson()=>{'id':id,'title':title,'category':category,'note':note,'week':week,'day':day,'time':time,'updatedAt':updatedAt.toIso8601String()};
   factory SimpleEntry.fromJson(Map<String,dynamic> j)=>SimpleEntry(id:'${j['id']}',title:'${j['title']??''}',category:'${j['category']??''}',note:'${j['note']??''}',week:'${j['week']??''}',day:(j['day'] as num?)?.toInt()??0,time:'${j['time']??''}',updatedAt:DateTime.tryParse('${j['updatedAt']}')??DateTime(2000));
 }
+
+class ShortClip {
+  ShortClip({required this.id,required this.title,required this.url,this.segments=const [],this.note='',this.game='',this.status='候補',this.priority='中',DateTime? updatedAt}):updatedAt=updatedAt??DateTime.now();
+  final String id; String title,url,note,game,status,priority;
+  List<String> segments; DateTime updatedAt;
+  Map<String,dynamic> toJson()=>{'id':id,'title':title,'url':url,'segments':segments,'note':note,'game':game,'status':status,'priority':priority,'updatedAt':updatedAt.toIso8601String()};
+  factory ShortClip.fromJson(Map<String,dynamic> j)=>ShortClip(id:'${j['id']}',title:'${j['title']??''}',url:'${j['url']??''}',segments:List<String>.from(j['segments']??const []),note:'${j['note']??''}',game:'${j['game']??''}',status:'${j['status']??'候補'}',priority:'${j['priority']??'中'}',updatedAt:DateTime.tryParse('${j['updatedAt']}')??DateTime(2000));
+}
