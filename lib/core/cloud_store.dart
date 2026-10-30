@@ -19,7 +19,7 @@ class CloudStore {
       _db.collection('users').doc(uid).collection('deletions');
 
   static const kinds = <String>[
-    'tasks','wants','futures','goals','milestones','inbox','trash','rememberEntries','weeklyEntries','accountIndex'
+    'tasks','wants','futures','goals','milestones','inbox','trash','rememberEntries','weeklyEntries','accountIndex','shortClips'
   ];
 
   Future<Map<String, dynamic>?> loadLegacyState(String uid) async =>
