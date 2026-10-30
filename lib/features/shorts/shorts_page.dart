@@ -97,7 +97,7 @@ class _ClipTimeEditorState extends State<ClipTimeEditor> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('開始・終了時間を確認してください（分・秒は0〜59）')));
       return;
     }
-    setState(() => items.add(ClipSegmentData(a, b, heading.text.trim()).encode()));
+    setState(() => items.add(ClipSegmentData(a!, b!, heading.text.trim()).encode()));
     widget.onChanged(List.of(items));
     heading.clear();
     for (final field in fields) { field.clear(); }
