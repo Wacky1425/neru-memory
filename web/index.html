@@ -41,6 +41,30 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Old Flutter service workers can keep serving a previous app bundle even
+    // after Hosting deploys. Disable those old workers before bootstrapping.
+    (async function () {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations
+            .filter(reg => new URL(reg.scope).origin === location.origin)
+            .map(reg => reg.unregister()));
+          if (navigator.serviceWorker.controller && !sessionStorage.getItem('neru-sw-reloaded')) {
+            sessionStorage.setItem('neru-sw-reloaded', '1');
+            location.reload();
+            return;
+          }
+        } catch (error) {
+          console.warn('Service worker cleanup skipped', error);
+        }
+      }
+      const script = document.createElement('script');
+      script.src = 'flutter_bootstrap.js?v=' + Date.now();
+      script.async = true;
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 </html>
