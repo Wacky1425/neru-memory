@@ -37,7 +37,6 @@ class ClipLinks {
   }
 }
 
-
 String formatClipTime(String raw) {
   final digits=raw.trim();
   if(digits.contains(':'))return digits;
@@ -166,6 +165,7 @@ class _ClipTimeEditorState extends State<ClipTimeEditor> {
   ]);
 }
 
+
 class ShortsPage extends StatefulWidget {
   const ShortsPage({super.key});
   @override State<ShortsPage> createState()=>_ShortsPageState();
@@ -178,7 +178,7 @@ class _ShortsPageState extends State<ShortsPage>{
     final url=TextEditingController(text:original?.url??'');
     final note=TextEditingController(text:original?.note??'');
     final game=TextEditingController(text:original?.game??'');
-    final segments=TextEditingController(text:(original?.segments??[]).join('\n'));
+    var segments=List<String>.of(original?.segments??[]);
     var status=original?.status??statuses.first;
     var priority=original?.priority??'中';
     final ok=await showDialog<bool>(context:context,builder:(dialog)=>StatefulBuilder(builder:(c,update)=>AlertDialog(
@@ -186,7 +186,7 @@ class _ShortsPageState extends State<ShortsPage>{
       content:SizedBox(width:480,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
         TextField(controller:title,autofocus:true,decoration:const InputDecoration(labelText:'どんな場面？（一覧の見出し）')),
         TextField(controller:url,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'配信URL（YouTube / Twitch）')),
-        TextField(controller:segments,minLines:2,maxLines:5,decoration:const InputDecoration(labelText:'切り抜き時間（1行に1区間）',hintText:'01:23:40 - 01:24:35\n02:10:15 - 02:11:05',helperText:'開始時間をタップすると、その場面を開けます')),
+        ClipTimeEditor(initial:segments,onChanged:(value)=>segments=value),
         TextField(controller:game,decoration:const InputDecoration(labelText:'ゲーム・タグ（例：VALORANT）')),
         TextField(controller:note,maxLines:3,decoration:const InputDecoration(labelText:'編集メモ')),
         DropdownButtonFormField<String>(initialValue:status,decoration:const InputDecoration(labelText:'制作状況'),items:[for(final s in statuses)DropdownMenuItem(value:s,child:Text(s))],onChanged:(v)=>update(()=>status=v??status)),
@@ -195,10 +195,10 @@ class _ShortsPageState extends State<ShortsPage>{
       actions:[TextButton(onPressed:()=>Navigator.pop(dialog,false),child:const Text('キャンセル')),FilledButton(onPressed:()=>Navigator.pop(dialog,true),child:const Text('保存'))],
     )));
     if(ok==true&&title.text.trim().isNotEmpty){
-      final times=segments.text.split('\n').map((x)=>x.trim()).where((x)=>x.isNotEmpty).toList();
+      final times=segments;
       state.saveShortClip(ShortClip(id:original?.id??state.id(),title:title.text.trim(),url:url.text.trim(),segments:times,note:note.text.trim(),game:game.text.trim(),status:status,priority:priority));
     }
-    title.dispose();url.dispose();note.dispose();game.dispose();segments.dispose();
+    title.dispose();url.dispose();note.dispose();game.dispose();
   }
   Future<void> openAt(String url,String timestamp)async{
     final link=ClipLinks.at(url,timestamp);
