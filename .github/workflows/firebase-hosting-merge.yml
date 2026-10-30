@@ -15,7 +15,10 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build web --release --pwa-strategy=none
-      # Keep the legacy worker URL alive so existing browser registrations can\n      # update to this self-removing worker instead of retaining a stale cache.\n      - run: cp web/legacy_sw_cleanup.js build/web/flutter_service_worker.js\n      - uses: FirebaseExtended/action-hosting-deploy@v0
+      # Keep the legacy worker URL alive so existing browser registrations can
+      # update to this self-removing worker instead of retaining a stale cache.
+      - run: cp web/legacy_sw_cleanup.js build/web/flutter_service_worker.js
+      - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NERU_MEMORY }}
