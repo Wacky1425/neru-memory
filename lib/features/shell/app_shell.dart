@@ -12,6 +12,8 @@ class AppShell extends StatefulWidget {
   @override State<AppShell> createState()=>_AppShellState();
 }
 class _AppShellState extends State<AppShell> {
+  static const buildVersion = String.fromEnvironment('NERU_BUILD_VERSION', defaultValue: 'dev');
+  static const versionLabel = 'Web v$buildVersion';
   int index=0;
   final pages=const [HomePage(),ListsPage(),GoalsPage(),CalendarPage(),ShortsPage(),SettingsPage()];
   static const destinations=<NavigationRailDestination>[
@@ -38,6 +40,13 @@ class _AppShellState extends State<AppShell> {
               leading:Padding(padding:const EdgeInsets.symmetric(vertical:16),child:FilledButton.icon(
                 onPressed:()=>showQuickCapture(context),icon:const Icon(Icons.add),label:const Text('追加'))),
               destinations:destinations,
+              trailing: Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Tooltip(
+                  message: '現在読み込んでいるWeb版のビルド番号',
+                  child: Text(versionLabel, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                ),
+              ),
             ),
             const VerticalDivider(width:1),
             Expanded(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:content))),
@@ -48,13 +57,19 @@ class _AppShellState extends State<AppShell> {
         body:content,
         floatingActionButton:index==5?null:FloatingActionButton.small(onPressed:()=>showQuickCapture(context),child:const Icon(Icons.add)),
         floatingActionButtonLocation:FloatingActionButtonLocation.endFloat,
-        bottomNavigationBar:NavigationBar(selectedIndex:index,onDestinationSelected:(v)=>setState(()=>index=v),destinations:const[
+        bottomNavigationBar:Column(mainAxisSize:MainAxisSize.min,children:[
+          Align(alignment:Alignment.centerRight,child:Padding(
+            padding:const EdgeInsets.only(right:12,top:3,bottom:2),
+            child:Text(versionLabel,style:const TextStyle(fontSize:10,color:Colors.grey)),
+          )),
+          NavigationBar(selectedIndex:index,onDestinationSelected:(v)=>setState(()=>index=v),destinations:const[
           NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'ホーム'),
           NavigationDestination(icon:Icon(Icons.checklist),label:'リスト'),
           NavigationDestination(icon:Icon(Icons.flag_outlined),label:'目標'),
           NavigationDestination(icon:Icon(Icons.calendar_month_outlined),label:'予定'),
           NavigationDestination(icon:Icon(Icons.movie_creation_outlined),label:'Shorts'),
           NavigationDestination(icon:Icon(Icons.settings_outlined),label:'設定'),
+        ]),
         ]),
       );
     }),
