@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 
-/// A non-secret index only. Credentials are kept in Google Password Manager.
+/// Account index synced via Firestore; passwords are stored only on this device.
 class PasswordIndexPage extends StatefulWidget {
   const PasswordIndexPage({super.key});
   @override State<PasswordIndexPage> createState()=>_PasswordIndexPageState();
@@ -15,6 +16,8 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
   static const categories=['銀行','個人アカウント','クレジットカード','仕事','ショッピング','SNS','その他'];
   final search=TextEditingController();
   List<SimpleEntry> items=[];
+  Map<String,String> localPasswords={};
+  static const passwordKey='neru_local_passwords_v1';
   String filter='すべて';
   @override void initState(){super.initState();WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)_load();});}
   @override void dispose(){search.dispose();super.dispose();}
@@ -31,6 +34,10 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
       }
       if(data.isNotEmpty)await p.remove(key);
     }catch(_){}
+    try {
+      final saved=jsonDecode(p.getString(passwordKey)??'{}') as Map;
+      localPasswords=Map<String,String>.from(saved);
+    } catch (_) { localPasswords={}; }
     if(mounted)setState(()=>items=state.accountIndex);
   }
   Future<void> _save()async{if(mounted)setState(()=>items=AppStateScope.of(context).accountIndex);}
@@ -42,17 +49,20 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     final old=index==null?null:items[index];
     final title=TextEditingController(text:old?.title??'');
     final note=TextEditingController(text:old?.note??'');
+    final password=TextEditingController(text:old==null?'':localPasswords[old.id]??'');
+    var visible=false;
     String category=old?.category??categories[1];
     final result=await showDialog<bool>(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(context,update)=>AlertDialog(
       title:Text(index==null?'サイトを分類に追加':'登録情報を編集'),
       content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-        const Text('パスワードや認証コードは入力しないでください。実際のログイン情報はGoogleで管理します。'),
+        const Text('パスワードはこの端末のブラウザ内に平文保存されます。クラウド同期・バックアップ対象外です。',style:TextStyle(fontSize:12)),
         const SizedBox(height:12),
         TextField(controller:title,decoration:const InputDecoration(labelText:'サイト・サービス名')),
         DropdownButtonFormField<String>(initialValue:category,isExpanded:true,
           items:categories.map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
           onChanged:(x)=>update(()=>category=x??category)),
-        TextField(controller:note,decoration:const InputDecoration(labelText:'メモ（秘密情報は不可）')),
+        TextField(controller:note,decoration:const InputDecoration(labelText:'メモ')),
+        TextField(controller:password,obscureText:!visible,decoration:InputDecoration(labelText:'パスワード（この端末のみ）',suffixIcon:IconButton(icon:Icon(visible?Icons.visibility_off:Icons.visibility),onPressed:()=>update(()=>visible=!visible)))),
       ])),
       actions:[
         TextButton(onPressed:()=>Navigator.pop(dialogContext,false),child:const Text('キャンセル')),
@@ -61,10 +71,14 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     )));
     if(result==true&&title.text.trim().isNotEmpty){
       final state=AppStateScope.of(context);
-      state.saveEntry('accountIndex',SimpleEntry(id:old?.id??state.id(),title:title.text.trim(),category:category,note:note.text.trim()));
+      final id=old?.id??state.id();
+      state.saveEntry('accountIndex',SimpleEntry(id:id,title:title.text.trim(),category:category,note:note.text.trim()));
+      final p=await SharedPreferences.getInstance();
+      if(password.text.isEmpty){localPasswords.remove(id);}else{localPasswords[id]=password.text;}
+      await p.setString(passwordKey,jsonEncode(localPasswords));
       await _save();
     }
-    title.dispose();note.dispose();
+    title.dispose();note.dispose();password.dispose();
   }
   Future<void> _remove(int index)async{
     final confirmed=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
@@ -72,7 +86,14 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
       content:const Text('Neru Memory内の分類情報だけを削除します。Googleに保存したパスワードは削除されません。'),
       actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('キャンセル')),
         FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('削除'))]));
-    if(confirmed==true){AppStateScope.of(context).removeEntry('accountIndex',items[index]);await _save();}
+    if(confirmed==true){
+      final id=items[index].id;
+      AppStateScope.of(context).removeEntry('accountIndex',items[index]);
+      localPasswords.remove(id);
+      final p=await SharedPreferences.getInstance();
+      await p.setString(passwordKey,jsonEncode(localPasswords));
+      await _save();
+    }
   }
   @override Widget build(BuildContext context){
     final q=search.text.trim().toLowerCase();
@@ -82,16 +103,16 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
       appBar:AppBar(title:const Text('パスワード管理'),actions:[
         IconButton(tooltip:'Googleで管理',icon:const Icon(Icons.open_in_new),onPressed:_openManager),
       ]),
-      floatingActionButton:FloatingActionButton.extended(onPressed:()=>_edit(),icon:const Icon(Icons.add),label:const Text('分類に追加')),
+      floatingActionButton:FloatingActionButton.extended(onPressed:()=>_edit(),icon:const Icon(Icons.add),label:const Text('アカウントを追加')),
       body:ListView(padding:const EdgeInsets.fromLTRB(16,12,16,100),children:[
         Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text('パスワード本体はGoogleに保存',style:TextStyle(fontWeight:FontWeight.bold)),
+          const Text('パスワードを直接登録できます',style:TextStyle(fontWeight:FontWeight.bold)),
           const SizedBox(height:6),
-          const Text('ここではサイト名を銀行・個人アカウント・クレカなどに分類します。ID・パスワード・復旧コードは保存しません。'),
+          const Text('サイト名・分類・メモ・パスワードを登録できます。パスワードはこの端末内だけに保存され、他端末には同期されません。'),
           const SizedBox(height:8),
           FilledButton.icon(onPressed:_openManager,icon:const Icon(Icons.key),label:const Text('Google パスワード マネージャーを開く')),
           const SizedBox(height:6),
-          const Text('※ 分類一覧はNeru Memoryのクラウド同期対象です。秘密情報は入力しないでください。',style:TextStyle(fontSize:12)),
+          const Text('注意：端末内のパスワードは暗号化されません。共有PCでの使用や重要アカウントの登録は推奨しません。',style:TextStyle(fontSize:12)),
         ]))),
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'サイト名・分類で検索',border:OutlineInputBorder())),
@@ -106,8 +127,14 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
           title:Text(entry.value.title),
           subtitle:Text([entry.value.category,entry.value.note].where((x)=>x!=null&&x.isNotEmpty).join(' · ')),
           onTap:()=>_edit(entry.key),
-          trailing:PopupMenuButton<String>(onSelected:(v){if(v=='delete')_remove(entry.key);else _openManager();},
-            itemBuilder:(_)=>const[PopupMenuItem(value:'open',child:Text('Googleで開く')),PopupMenuItem(value:'delete',child:Text('分類から削除'))]),
+          trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+            if(localPasswords.containsKey(entry.value.id))IconButton(tooltip:'パスワードをコピー',icon:const Icon(Icons.copy_outlined),onPressed:()async{
+              await Clipboard.setData(ClipboardData(text:localPasswords[entry.value.id]!));
+              if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('パスワードをコピーしました')));
+            }),
+            PopupMenuButton<String>(onSelected:(v){if(v=='delete')_remove(entry.key);else _edit(entry.key);},
+              itemBuilder:(_)=>const[PopupMenuItem(value:'edit',child:Text('編集')),PopupMenuItem(value:'delete',child:Text('削除'))]),
+          ]),
         )),
       ]),
     );
