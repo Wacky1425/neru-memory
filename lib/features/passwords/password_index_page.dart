@@ -98,6 +98,17 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
       await _save();
     }
   }
+  String _csvCell(String value)=>'"${value.replaceAll('"','""')}"';
+  Future<void> _exportCsv()async{
+    final state=AppStateScope.of(context);
+    final rows=<List<String>>[
+      ['サービス名','ログインID','パスワード','分類','URL','メモ','更新日時'],
+      for(final x in state.accountIndex)[x.title,x.loginId,x.password,x.category,x.url,x.note,x.updatedAt.toIso8601String()],
+    ];
+    final csv='\uFEFF${rows.map((r)=>r.map(_csvCell).join(',')).join('\r\n')}';
+    await Clipboard.setData(ClipboardData(text:csv));
+    if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('CSVをコピーしました。テキストファイルに保存してGoogle Driveへアップロードできます。')));
+  }
   Future<void> _copy(String value,String label)async{
     await Clipboard.setData(ClipboardData(text:value));
     if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$labelをコピーしました')));
@@ -110,7 +121,7 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     for(final e in shown){(grouped[e.value.category.isEmpty?'その他':e.value.category]??=[]).add(e);}
     return Scaffold(
       appBar:AppBar(title:Text('パスワード管理 (${shown.length})'),actions:[
-        IconButton(tooltip:'Googleで管理',icon:const Icon(Icons.open_in_new),onPressed:_openManager),
+        IconButton(tooltip:'CSVバックアップをコピー',icon:const Icon(Icons.download_outlined),onPressed:_exportCsv),
       ]),
       floatingActionButton:FloatingActionButton.extended(onPressed:()=>_edit(),icon:const Icon(Icons.add),label:const Text('アカウントを追加')),
       body:ListView(padding:const EdgeInsets.fromLTRB(16,12,16,100),children:[
@@ -119,9 +130,9 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
           const SizedBox(height:6),
           const Text('サービス名・ログインID・パスワードを分類して管理。IDとパスワードは一覧からコピーできます。'),
           const SizedBox(height:8),
-          FilledButton.icon(onPressed:_openManager,icon:const Icon(Icons.key),label:const Text('Google パスワード マネージャーを開く')),
+          OutlinedButton.icon(onPressed:_exportCsv,icon:const Icon(Icons.download_outlined),label:const Text('CSVバックアップをコピー')),
           const SizedBox(height:6),
-          const Text('注意：現在の保存方式は暗号化されずFirebaseと端末に保存されます。重要なアカウントには推奨しません。',style:TextStyle(fontSize:12)),
+          const Text('注意：Firebase保存・CSV出力は暗号化されません。CSVは他人に渡さず安全に保管してください。',style:TextStyle(fontSize:12)),
         ]))),
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'サイト名・分類で検索',border:OutlineInputBorder())),
