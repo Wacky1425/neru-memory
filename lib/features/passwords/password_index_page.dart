@@ -13,11 +13,37 @@ class PasswordIndexPage extends StatefulWidget {
 }
 class _PasswordIndexPageState extends State<PasswordIndexPage> {
   static const key='password_index_v1';
+  static const categoryPrefix='__neru_category__:';
   static const categories=['銀行','個人アカウント','クレジットカード','仕事','ショッピング','SNS','その他'];
   final search=TextEditingController();
   List<SimpleEntry> items=[];
   static const passwordKey='neru_local_passwords_v1';
   String filter='すべて';
+  bool _isCategoryMarker(SimpleEntry e)=>e.id.startsWith(categoryPrefix);
+  List<String> get allCategories=>{
+    ...categories,
+    ...items.where(_isCategoryMarker).map((e)=>e.title),
+    ...items.where((e)=>!_isCategoryMarker(e)&&e.category.isNotEmpty).map((e)=>e.category),
+  }.toList();
+  Future<String?> _newCategory()async{
+    final name=TextEditingController();
+    final result=await showDialog<String>(context:context,builder:(d)=>AlertDialog(
+      title:const Text('カテゴリを追加'),
+      content:TextField(controller:name,autofocus:true,maxLength:30,decoration:const InputDecoration(labelText:'カテゴリ名',hintText:'例：ゲーム・配信活動')),
+      actions:[TextButton(onPressed:()=>Navigator.pop(d),child:const Text('キャンセル')),
+        FilledButton(onPressed:()=>Navigator.pop(d,name.text.trim()),child:const Text('追加'))],
+    ));
+    name.dispose();
+    if(result==null||result.isEmpty)return null;
+    if(allCategories.contains(result)){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('同じ名前のカテゴリが既にあります')));
+      return result;
+    }
+    final state=AppStateScope.of(context);
+    state.saveEntry('accountIndex',SimpleEntry(id:'$categoryPrefix${state.id()}',title:result));
+    await _save();
+    return result;
+  }
   @override void initState(){super.initState();WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)_load();});}
   @override void dispose(){search.dispose();super.dispose();}
   Future<void> _load()async{
@@ -60,15 +86,22 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     final password=TextEditingController(text:old==null?'':old.password);
     var visible=false;
     String category=old?.category??categories[1];
+    final choices=<String>{...allCategories,category}.toList();
     final result=await showDialog<bool>(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(context,update)=>AlertDialog(
       title:Text(index==null?'サイトを分類に追加':'登録情報を編集'),
       content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
         const Text('パスワードはFirebase経由でWeb・Android間に同期されます。現在は暗号化されず保存されるため、重要なパスワードの登録は推奨しません。',style:TextStyle(fontSize:12)),
         const SizedBox(height:12),
         TextField(controller:title,decoration:const InputDecoration(labelText:'サイト・サービス名')),
-        DropdownButtonFormField<String>(initialValue:category,isExpanded:true,
-          items:categories.map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
-          onChanged:(x)=>update(()=>category=x??category)),
+        Row(children:[
+          Expanded(child:DropdownButtonFormField<String>(key:ValueKey(category),initialValue:category,isExpanded:true,
+            items:choices.map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
+            onChanged:(x)=>update(()=>category=x??category))),
+          IconButton(tooltip:'新しいカテゴリを追加',icon:const Icon(Icons.create_new_folder_outlined),onPressed:()async{
+            final added=await _newCategory();
+            if(added!=null){update((){if(!choices.contains(added))choices.add(added);category=added;});}
+          }),
+        ]),
         TextField(controller:loginId,decoration:const InputDecoration(labelText:'ログインID・メールアドレス')),
         TextField(controller:url,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'ログインURL（任意）')),
         TextField(controller:note,maxLines:2,decoration:const InputDecoration(labelText:'メモ')),
@@ -103,7 +136,7 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     final state=AppStateScope.of(context);
     final rows=<List<String>>[
       ['サービス名','ログインID','パスワード','分類','URL','メモ','更新日時'],
-      for(final x in state.accountIndex)[x.title,x.loginId,x.password,x.category,x.url,x.note,x.updatedAt.toIso8601String()],
+      for(final x in state.accountIndex.where((e)=>!_isCategoryMarker(e)))[x.title,x.loginId,x.password,x.category,x.url,x.note,x.updatedAt.toIso8601String()],
     ];
     final csv='\uFEFF${rows.map((r)=>r.map(_csvCell).join(',')).join('\r\n')}';
     await Clipboard.setData(ClipboardData(text:csv));
@@ -115,12 +148,13 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
   }
   @override Widget build(BuildContext context){
     final q=search.text.trim().toLowerCase();
-    final shown=items.asMap().entries.where((e)=>(filter=='すべて'||e.value.category==filter)&&
+    final shown=items.asMap().entries.where((e)=>!_isCategoryMarker(e.value)&&(filter=='すべて'||e.value.category==filter)&&
       (q.isEmpty||[e.value.title,e.value.category,e.value.loginId,e.value.url,e.value.note].any((v)=>v.toLowerCase().contains(q)))).toList();
     final grouped=<String,List<MapEntry<int,SimpleEntry>>>{};
     for(final e in shown){(grouped[e.value.category.isEmpty?'その他':e.value.category]??=[]).add(e);}
     return Scaffold(
-      appBar:AppBar(title:Text('パスワード管理 (${shown.length})'),actions:[
+      appBar:AppBar(title:Text('パスワード管理 (${items.where((e)=>!_isCategoryMarker(e)).length})'),actions:[
+        IconButton(tooltip:'カテゴリを追加',icon:const Icon(Icons.create_new_folder_outlined),onPressed:_newCategory),
         IconButton(tooltip:'CSVバックアップをコピー',icon:const Icon(Icons.download_outlined),onPressed:_exportCsv),
       ]),
       floatingActionButton:FloatingActionButton.extended(onPressed:()=>_edit(),icon:const Icon(Icons.add),label:const Text('アカウントを追加')),
@@ -138,11 +172,11 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'サイト名・分類で検索',border:OutlineInputBorder())),
         const SizedBox(height:12),
         SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
-          for(final x in ['すべて',...categories])Padding(padding:const EdgeInsets.only(right:6),child:ChoiceChip(label:Text(x),selected:filter==x,onSelected:(_)=>setState(()=>filter=x))),
+          for(final x in ['すべて',...allCategories])Padding(padding:const EdgeInsets.only(right:6),child:ChoiceChip(label:Text(x),selected:filter==x,onSelected:(_)=>setState(()=>filter=x))),
         ])),
         const SizedBox(height:8),
         if(shown.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('この分類に登録されたサイトはありません。')),
-        for(final category in categories)
+        for(final category in allCategories)
           if(grouped.containsKey(category))...[ 
             Padding(padding:const EdgeInsets.fromLTRB(4,16,4,6),child:Text('$category  ${grouped[category]!.length}件',style:Theme.of(context).textTheme.titleSmall)),
             for(final entry in grouped[category]!)Card(child:ListTile(
