@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_state.dart';
 import '../../core/models.dart';
 
-/// Account index synced via Firestore; passwords are stored only on this device.
+/// Account entries, including passwords, sync through the existing Firestore account index.
 class PasswordIndexPage extends StatefulWidget {
   const PasswordIndexPage({super.key});
   @override State<PasswordIndexPage> createState()=>_PasswordIndexPageState();
@@ -16,7 +16,6 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
   static const categories=['銀行','個人アカウント','クレジットカード','仕事','ショッピング','SNS','その他'];
   final search=TextEditingController();
   List<SimpleEntry> items=[];
-  Map<String,String> localPasswords={};
   static const passwordKey='neru_local_passwords_v1';
   String filter='すべて';
   @override void initState(){super.initState();WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)_load();});}
@@ -36,8 +35,15 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     }catch(_){}
     try {
       final saved=jsonDecode(p.getString(passwordKey)??'{}') as Map;
-      localPasswords=Map<String,String>.from(saved);
-    } catch (_) { localPasswords={}; }
+      final legacy=Map<String,String>.from(saved);
+      for(final entry in state.accountIndex){
+        final value=legacy[entry.id];
+        if(value!=null && value.isNotEmpty && entry.password.isEmpty){
+          state.saveEntry('accountIndex',SimpleEntry(id:entry.id,title:entry.title,category:entry.category,note:entry.note,password:value));
+        }
+      }
+      if(legacy.isNotEmpty)await p.remove(passwordKey);
+    } catch (_) {}
     if(mounted)setState(()=>items=state.accountIndex);
   }
   Future<void> _save()async{if(mounted)setState(()=>items=AppStateScope.of(context).accountIndex);}
@@ -49,20 +55,20 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     final old=index==null?null:items[index];
     final title=TextEditingController(text:old?.title??'');
     final note=TextEditingController(text:old?.note??'');
-    final password=TextEditingController(text:old==null?'':localPasswords[old.id]??'');
+    final password=TextEditingController(text:old==null?'':old.password);
     var visible=false;
     String category=old?.category??categories[1];
     final result=await showDialog<bool>(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(context,update)=>AlertDialog(
       title:Text(index==null?'サイトを分類に追加':'登録情報を編集'),
       content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-        const Text('パスワードはこの端末のブラウザ内に平文保存されます。クラウド同期・バックアップ対象外です。',style:TextStyle(fontSize:12)),
+        const Text('パスワードはFirebase経由でWeb・Android間に同期されます。現在は暗号化されず保存されるため、重要なパスワードの登録は推奨しません。',style:TextStyle(fontSize:12)),
         const SizedBox(height:12),
         TextField(controller:title,decoration:const InputDecoration(labelText:'サイト・サービス名')),
         DropdownButtonFormField<String>(initialValue:category,isExpanded:true,
           items:categories.map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
           onChanged:(x)=>update(()=>category=x??category)),
         TextField(controller:note,decoration:const InputDecoration(labelText:'メモ')),
-        TextField(controller:password,obscureText:!visible,decoration:InputDecoration(labelText:'パスワード（この端末のみ）',suffixIcon:IconButton(icon:Icon(visible?Icons.visibility_off:Icons.visibility),onPressed:()=>update(()=>visible=!visible)))),
+        TextField(controller:password,obscureText:!visible,decoration:InputDecoration(labelText:'パスワード（端末間で同期）',suffixIcon:IconButton(icon:Icon(visible?Icons.visibility_off:Icons.visibility),onPressed:()=>update(()=>visible=!visible)))),
       ])),
       actions:[
         TextButton(onPressed:()=>Navigator.pop(dialogContext,false),child:const Text('キャンセル')),
@@ -72,10 +78,7 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     if(result==true&&title.text.trim().isNotEmpty){
       final state=AppStateScope.of(context);
       final id=old?.id??state.id();
-      state.saveEntry('accountIndex',SimpleEntry(id:id,title:title.text.trim(),category:category,note:note.text.trim()));
-      final p=await SharedPreferences.getInstance();
-      if(password.text.isEmpty){localPasswords.remove(id);}else{localPasswords[id]=password.text;}
-      await p.setString(passwordKey,jsonEncode(localPasswords));
+      state.saveEntry('accountIndex',SimpleEntry(id:id,title:title.text.trim(),category:category,note:note.text.trim(),password:password.text));
       await _save();
     }
     title.dispose();note.dispose();password.dispose();
@@ -83,15 +86,12 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
   Future<void> _remove(int index)async{
     final confirmed=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
       title:const Text('一覧から削除しますか？'),
-      content:const Text('Neru Memory内の分類情報だけを削除します。Googleに保存したパスワードは削除されません。'),
+      content:const Text('このアカウント情報と登録パスワードを同期先から削除します。'),
       actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('キャンセル')),
         FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('削除'))]));
     if(confirmed==true){
       final id=items[index].id;
       AppStateScope.of(context).removeEntry('accountIndex',items[index]);
-      localPasswords.remove(id);
-      final p=await SharedPreferences.getInstance();
-      await p.setString(passwordKey,jsonEncode(localPasswords));
       await _save();
     }
   }
@@ -108,11 +108,11 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
         Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('パスワードを直接登録できます',style:TextStyle(fontWeight:FontWeight.bold)),
           const SizedBox(height:6),
-          const Text('サイト名・分類・メモ・パスワードを登録できます。パスワードはこの端末内だけに保存され、他端末には同期されません。'),
+          const Text('サイト名・分類・メモ・パスワードを登録できます。パスワードはWeb版・Android版で同期されます。'),
           const SizedBox(height:8),
           FilledButton.icon(onPressed:_openManager,icon:const Icon(Icons.key),label:const Text('Google パスワード マネージャーを開く')),
           const SizedBox(height:6),
-          const Text('注意：端末内のパスワードは暗号化されません。共有PCでの使用や重要アカウントの登録は推奨しません。',style:TextStyle(fontSize:12)),
+          const Text('注意：現在の保存方式は暗号化されずFirebaseと端末に保存されます。重要なアカウントには推奨しません。',style:TextStyle(fontSize:12)),
         ]))),
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'サイト名・分類で検索',border:OutlineInputBorder())),
@@ -128,8 +128,8 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
           subtitle:Text([entry.value.category,entry.value.note].where((x)=>x!=null&&x.isNotEmpty).join(' · ')),
           onTap:()=>_edit(entry.key),
           trailing:Row(mainAxisSize:MainAxisSize.min,children:[
-            if(localPasswords.containsKey(entry.value.id))IconButton(tooltip:'パスワードをコピー',icon:const Icon(Icons.copy_outlined),onPressed:()async{
-              await Clipboard.setData(ClipboardData(text:localPasswords[entry.value.id]!));
+            if(entry.value.password.isNotEmpty)IconButton(tooltip:'パスワードをコピー',icon:const Icon(Icons.copy_outlined),onPressed:()async{
+              await Clipboard.setData(ClipboardData(text:entry.value.password));
               if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('パスワードをコピーしました')));
             }),
             PopupMenuButton<String>(onSelected:(v){if(v=='delete')_remove(entry.key);else _edit(entry.key);},
