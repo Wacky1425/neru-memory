@@ -39,7 +39,7 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
       for(final entry in state.accountIndex){
         final value=legacy[entry.id];
         if(value!=null && value.isNotEmpty && entry.password.isEmpty){
-          state.saveEntry('accountIndex',SimpleEntry(id:entry.id,title:entry.title,category:entry.category,note:entry.note,password:value));
+          state.saveEntry('accountIndex',SimpleEntry(id:entry.id,title:entry.title,category:entry.category,note:entry.note,password:value,loginId:entry.loginId,url:entry.url));
         }
       }
       if(legacy.isNotEmpty)await p.remove(passwordKey);
@@ -55,6 +55,8 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     final old=index==null?null:items[index];
     final title=TextEditingController(text:old?.title??'');
     final note=TextEditingController(text:old?.note??'');
+    final loginId=TextEditingController(text:old?.loginId??'');
+    final url=TextEditingController(text:old?.url??'');
     final password=TextEditingController(text:old==null?'':old.password);
     var visible=false;
     String category=old?.category??categories[1];
@@ -67,7 +69,9 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
         DropdownButtonFormField<String>(initialValue:category,isExpanded:true,
           items:categories.map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
           onChanged:(x)=>update(()=>category=x??category)),
-        TextField(controller:note,decoration:const InputDecoration(labelText:'メモ')),
+        TextField(controller:loginId,decoration:const InputDecoration(labelText:'ログインID・メールアドレス')),
+        TextField(controller:url,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'ログインURL（任意）')),
+        TextField(controller:note,maxLines:2,decoration:const InputDecoration(labelText:'メモ')),
         TextField(controller:password,obscureText:!visible,decoration:InputDecoration(labelText:'パスワード（端末間で同期）',suffixIcon:IconButton(icon:Icon(visible?Icons.visibility_off:Icons.visibility),onPressed:()=>update(()=>visible=!visible)))),
       ])),
       actions:[
@@ -78,10 +82,10 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
     if(result==true&&title.text.trim().isNotEmpty){
       final state=AppStateScope.of(context);
       final id=old?.id??state.id();
-      state.saveEntry('accountIndex',SimpleEntry(id:id,title:title.text.trim(),category:category,note:note.text.trim(),password:password.text));
+      state.saveEntry('accountIndex',SimpleEntry(id:id,title:title.text.trim(),category:category,note:note.text.trim(),password:password.text,loginId:loginId.text.trim(),url:url.text.trim()));
       await _save();
     }
-    title.dispose();note.dispose();password.dispose();
+    title.dispose();note.dispose();password.dispose();loginId.dispose();url.dispose();
   }
   Future<void> _remove(int index)async{
     final confirmed=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
@@ -90,17 +94,22 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
       actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('キャンセル')),
         FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('削除'))]));
     if(confirmed==true){
-      final id=items[index].id;
       AppStateScope.of(context).removeEntry('accountIndex',items[index]);
       await _save();
     }
   }
+  Future<void> _copy(String value,String label)async{
+    await Clipboard.setData(ClipboardData(text:value));
+    if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$labelをコピーしました')));
+  }
   @override Widget build(BuildContext context){
     final q=search.text.trim().toLowerCase();
     final shown=items.asMap().entries.where((e)=>(filter=='すべて'||e.value.category==filter)&&
-      (q.isEmpty||[e.value.title,e.value.category,e.value.note].any((v)=>v.toLowerCase().contains(q)))).toList();
+      (q.isEmpty||[e.value.title,e.value.category,e.value.loginId,e.value.url,e.value.note].any((v)=>v.toLowerCase().contains(q)))).toList();
+    final grouped=<String,List<MapEntry<int,SimpleEntry>>>{};
+    for(final e in shown){(grouped[e.value.category.isEmpty?'その他':e.value.category]??=[]).add(e);}
     return Scaffold(
-      appBar:AppBar(title:const Text('パスワード管理'),actions:[
+      appBar:AppBar(title:Text('パスワード管理 (${shown.length})'),actions:[
         IconButton(tooltip:'Googleで管理',icon:const Icon(Icons.open_in_new),onPressed:_openManager),
       ]),
       floatingActionButton:FloatingActionButton.extended(onPressed:()=>_edit(),icon:const Icon(Icons.add),label:const Text('アカウントを追加')),
@@ -108,7 +117,7 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
         Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('パスワードを直接登録できます',style:TextStyle(fontWeight:FontWeight.bold)),
           const SizedBox(height:6),
-          const Text('サイト名・分類・メモ・パスワードを登録できます。パスワードはWeb版・Android版で同期されます。'),
+          const Text('サービス名・ログインID・パスワードを分類して管理。IDとパスワードは一覧からコピーできます。'),
           const SizedBox(height:8),
           FilledButton.icon(onPressed:_openManager,icon:const Icon(Icons.key),label:const Text('Google パスワード マネージャーを開く')),
           const SizedBox(height:6),
@@ -122,20 +131,30 @@ class _PasswordIndexPageState extends State<PasswordIndexPage> {
         ])),
         const SizedBox(height:8),
         if(shown.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('この分類に登録されたサイトはありません。')),
-        for(final entry in shown)Card(child:ListTile(
-          leading:const Icon(Icons.language),
-          title:Text(entry.value.title),
-          subtitle:Text([entry.value.category,entry.value.note].where((x)=>x!=null&&x.isNotEmpty).join(' · ')),
-          onTap:()=>_edit(entry.key),
-          trailing:Row(mainAxisSize:MainAxisSize.min,children:[
-            if(entry.value.password.isNotEmpty)IconButton(tooltip:'パスワードをコピー',icon:const Icon(Icons.copy_outlined),onPressed:()async{
-              await Clipboard.setData(ClipboardData(text:entry.value.password));
-              if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('パスワードをコピーしました')));
-            }),
-            PopupMenuButton<String>(onSelected:(v){if(v=='delete')_remove(entry.key);else _edit(entry.key);},
-              itemBuilder:(_)=>const[PopupMenuItem(value:'edit',child:Text('編集')),PopupMenuItem(value:'delete',child:Text('削除'))]),
-          ]),
-        )),
+        for(final category in categories)
+          if(grouped.containsKey(category))...[ 
+            Padding(padding:const EdgeInsets.fromLTRB(4,16,4,6),child:Text('$category  ${grouped[category]!.length}件',style:Theme.of(context).textTheme.titleSmall)),
+            for(final entry in grouped[category]!)Card(child:ListTile(
+              leading:CircleAvatar(child:Text(entry.value.title.isEmpty?'?':entry.value.title.substring(0,1))),
+              title:Text(entry.value.title,style:const TextStyle(fontWeight:FontWeight.w600)),
+              subtitle:Text([entry.value.loginId,entry.value.note].where((x)=>x.isNotEmpty).join(' · '),maxLines:2,overflow:TextOverflow.ellipsis),
+              onTap:()=>_edit(entry.key),
+              trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+                if(entry.value.loginId.isNotEmpty)IconButton(tooltip:'IDをコピー',icon:const Icon(Icons.person_outline),onPressed:()=>_copy(entry.value.loginId,'ID')),
+                if(entry.value.password.isNotEmpty)IconButton(tooltip:'パスワードをコピー',icon:const Icon(Icons.copy_outlined),onPressed:()=>_copy(entry.value.password,'パスワード')),
+                PopupMenuButton<String>(onSelected:(v){
+                  if(v=='delete'){_remove(entry.key);}else if(v=='open'){
+                    final u=Uri.tryParse(entry.value.url);
+                    if(u!=null&&(u.scheme=='https'||u.scheme=='http'))launchUrl(u,mode:LaunchMode.externalApplication);
+                  }else{_edit(entry.key);}
+                },itemBuilder:(_)=>[
+                  const PopupMenuItem(value:'edit',child:Text('編集')),
+                  if(entry.value.url.isNotEmpty)const PopupMenuItem(value:'open',child:Text('サイトを開く')),
+                  const PopupMenuItem(value:'delete',child:Text('削除')),
+                ]),
+              ]),
+            )),
+          ],
       ]),
     );
   }
